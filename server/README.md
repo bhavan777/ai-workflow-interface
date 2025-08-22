@@ -1,180 +1,158 @@
-# AI Workflow Interface - Server
+# AI Workflow Interface - Backend Server
 
-A Node.js/TypeScript server that provides AI-powered data flow conversation capabilities with WebSocket support for real-time communication.
+A Node.js/TypeScript backend server for the AI Workflow Interface, providing intelligent data pipeline creation through natural language processing.
 
-## Features
+## 🚀 Features
 
-- **Groq Cloud AI Integration**: Uses Groq Cloud's unlimited access to LLaMA-2 70B, Mixtral-8x7B, and Gemma 7B models
-- **Intelligent Model Selection**: Automatically chooses the best model for each task
-- **WebSocket Support**: Real-time communication for interactive chat interface
-- **REST API**: HTTP endpoints for data flow processing
-- **TypeScript**: Full type safety and modern development experience
-- **Hot Reload**: Development server with automatic restart on file changes
+- **🤖 Groq Cloud Integration**: Intelligent model selection (LLaMA 3.1 8B, LLaMA 3.3 70B)
+- **📊 3-Node Workflow Structure**: Enforced source → transform → destination pattern
+- **📈 Status Management**: Complete status progression (pending → partial → complete)
+- **🔄 Retry Logic**: Automatic retry with exponential backoff for API failures
+- **💾 Data Persistence**: File system with in-memory fallback
+- **🔒 API Validation**: Automatic Groq API key validation
+- **📡 WebSocket Support**: Real-time communication
+- **🏥 Health Monitoring**: Comprehensive health checks
 
-## Setup
+## 🛠️ Setup
 
-1. **Install dependencies**:
+### Prerequisites
+- Node.js 18+ 
+- Groq Cloud API key
 
-   ```bash
-   npm install
-   ```
+### Installation
 
-2. **Environment Configuration**:
-   - Copy `env.example` to `.env`
-   - Add your Groq Cloud API key (free at https://console.groq.com/):
-     ```
-     GROQ_API_KEY=gsk-your-groq-cloud-api-key-here
-     PORT=3001
-     NODE_ENV=development
-     ```
-
-3. **Development**:
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Production Build**:
-   ```bash
-   npm run build
-   npm start
-   ```
-
-## Testing
-
-Run the integration test to verify Groq Cloud is working:
-
+1. **Clone and install dependencies:**
 ```bash
-npm test
+cd server
+npm install
 ```
 
-## Intelligent Model Selection
+2. **Set up environment variables:**
+```bash
+cp env.example .env
+# Edit .env and add your GROQ_API_KEY
+```
 
-The system automatically selects the optimal model for each task:
+3. **Get your Groq Cloud API key:**
+   - Visit [Groq Console](https://console.groq.com/)
+   - Create a free account
+   - Generate an API key (starts with `gsk_`)
 
-- **Gemma 7B**: Used for simple, fast tasks (quick responses, basic questions)
-- **Mixtral 8x7B**: Used for balanced performance (most workflows)
-- **LLaMA-2 70B**: Used for complex tasks (detailed integrations, multiple requirements)
+4. **Start the server:**
+```bash
+npm run dev
+```
 
-## API Endpoints
+## 🔧 Configuration
 
-### REST API
+### Environment Variables
 
-- `GET /health` - Health check
-- `GET /api/ai/workflows` - Get available workflow templates
-- `POST /api/ai/conversation/start` - Start a new data flow conversation
-- `POST /api/ai/conversation/continue` - Continue an existing conversation
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `GROQ_API_KEY` | Groq Cloud API key | ✅ | - |
+| `PORT` | Server port | ❌ | 3001 |
+| `NODE_ENV` | Environment | ❌ | development |
+| `DEBUG` | Enable debug logging | ❌ | false |
 
-### WebSocket Events
+### Model Selection
 
-- `conversation_start` - Start a new data flow conversation
-- `conversation_continue` - Continue an existing conversation
-- `status` - Status updates during processing
-- `error` - Error responses
+The system automatically selects the best Groq model:
 
-## Data Flow Conversation
+- **🚀 LLaMA 3.1 8B Instant**: Fast, simple tasks
+- **⚡ LLaMA 3.1 8B**: Balanced performance  
+- **🧠 LLaMA 3.3 70B**: Complex workflows
 
-The server is designed to handle conversations about data flows. When a user describes a data flow (e.g., "Connect Shopify to Snowflake"), the AI will:
+## 📡 API Endpoints
 
-1. Understand the requirements
-2. Ask clarifying questions
-3. Generate structured data flow diagrams
-4. Provide configuration suggestions
+### Health Check
+```bash
+GET /health
+```
+Returns server and Groq API health status.
 
-### Example Usage
+### AI Workflow
+```bash
+POST /api/ai/start
+POST /api/ai/continue
+```
 
-**Starting a conversation**:
+### WebSocket
+```bash
+ws://localhost:3001
+```
 
-```javascript
-// WebSocket
-ws.send(JSON.stringify({
-  type: 'conversation_start',
-  id: 'msg-1',
-  data: {
-    description: 'Connect Shopify to Snowflake'
-  }
-}));
+## 🚀 Deployment
 
-// REST API
-POST /api/ai/conversation/start
+### Render (Recommended)
+1. Connect your GitHub repository
+2. Set environment variables in Render dashboard
+3. Deploy automatically on push
+
+### Manual Deployment
+```bash
+npm run build
+npm start
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**❌ "GROQ_API_KEY environment variable is required"**
+- Ensure your API key is set in environment variables
+- Check that the key starts with `gsk_`
+
+**❌ "Invalid GROQ_API_KEY format"**
+- Verify your API key starts with `gsk_`
+- Regenerate the key in Groq Console if needed
+
+**❌ "Groq API key validation failed"**
+- Check your internet connection
+- Verify the API key is valid and has credits
+- Check Groq service status
+
+**❌ "File system save failed"**
+- The system will automatically use in-memory storage
+- This is normal in production environments
+
+**❌ "All retry attempts failed"**
+- Check Groq API status
+- Verify your API key has sufficient credits
+- Try again in a few minutes
+
+### Health Check Response
+
+```json
 {
-  "description": "Connect Shopify to Snowflake"
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 3600,
+  "groq_api": "healthy"
 }
 ```
 
-**Continuing a conversation**:
+### Logs
 
-```javascript
-// WebSocket
-ws.send(JSON.stringify({
-  type: 'conversation_continue',
-  id: 'msg-2',
-  data: {
-    conversationHistory: [...],
-    answer: 'My store URL is example.myshopify.com'
-  }
-}));
+Monitor logs for:
+- `✅ Groq API key validated successfully`
+- `⚠️ Groq API key validation failed`
+- `🔄 Attempt X/3 to call Groq Cloud...`
+- `✅ All conversations cleared`
 
-// REST API
-POST /api/ai/conversation/continue
-{
-  "conversationHistory": [...],
-  "answer": "My store URL is example.myshopify.com"
-}
-```
+## 📊 Performance
 
-## Response Format
+- **Response Time**: 2-10 seconds (depending on model)
+- **Retry Logic**: 3 attempts with exponential backoff
+- **Timeout**: 60 seconds per request
+- **Memory Usage**: ~50MB base + conversation storage
 
-The AI responses include structured data for rendering flow diagrams:
+## 🔒 Security
 
-```typescript
-interface DataFlowResponse {
-  message: string; // Human-readable message
-  nodes: DataFlowNode[]; // Flow diagram nodes
-  connections: DataFlowConnection[]; // Connections between nodes
-  questions?: string[]; // Follow-up questions
-  isComplete: boolean; // Whether the flow is complete
-}
-```
+- CORS protection for web clients
+- Rate limiting on API endpoints
+- API key validation on startup
+- Graceful error handling
 
-## Node Types
+## 📝 License
 
-- **source**: Databases, APIs, file systems (blue)
-- **transform**: Data processing, filtering, mapping (purple)
-- **destination**: Warehouses, APIs, applications (green)
-
-## Node Status
-
-- **pending**: Initial state (orange)
-- **partial**: Some configuration provided (blue)
-- **complete**: Fully configured (green)
-- **error**: Configuration issues (red)
-
-## Why Groq Cloud?
-
-- **🆓 Completely Free**: Unlimited access to multiple models
-- **⚡ Ultra-Fast**: Specialized inference hardware
-- **🎯 Smart Model Selection**: Automatically picks the best model for each task
-- **🔄 No Quotas**: No rate limiting headaches
-- **💪 Production Ready**: Great for development and demos
-- **🚀 Beta Access**: Cutting-edge models and features
-
-## Development
-
-The server uses:
-
-- **TypeScript** for type safety
-- **Express** for HTTP server
-- **ws** for WebSocket support
-- **Groq Cloud** for AI conversations
-- **nodemon** for development hot reload
-
-## Deployment
-
-For production deployment, consider:
-
-- Using a process manager like PM2
-- Setting up proper environment variables
-- Implementing rate limiting
-- Adding authentication/authorization
-- Setting up monitoring and logging
+ISC License

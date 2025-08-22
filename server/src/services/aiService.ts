@@ -1,12 +1,22 @@
 import * as fs from 'fs';
+import fetch from 'node-fetch';
 import * as path from 'path';
 
 // File-based conversation store for persistence
 const CONVERSATIONS_DIR = path.join(__dirname, '../../conversations');
 
+// In-memory fallback for production environments
+const inMemoryConversations = new Map<string, ConversationMessage[]>();
+
 // Ensure conversations directory exists
 if (!fs.existsSync(CONVERSATIONS_DIR)) {
-  fs.mkdirSync(CONVERSATIONS_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(CONVERSATIONS_DIR, { recursive: true });
+  } catch (error) {
+    console.warn(
+      '⚠️ Could not create conversations directory, using in-memory storage'
+    );
+  }
 }
 
 const getConversationPath = (conversationId: string): string => {
@@ -18,10 +28,13 @@ const saveConversation = (
   messages: ConversationMessage[]
 ): void => {
   try {
+    // Try file system first
     const filePath = getConversationPath(conversationId);
     fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
   } catch (error) {
-    console.error('Failed to save conversation:', error);
+    console.warn('⚠️ File system save failed, using in-memory storage:', error);
+    // Fallback to in-memory storage
+    inMemoryConversations.set(conversationId, messages);
   }
 };
 
@@ -29,15 +42,21 @@ const loadConversation = (
   conversationId: string
 ): ConversationMessage[] | null => {
   try {
+    // Try file system first
     const filePath = getConversationPath(conversationId);
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Failed to load conversation:', error);
+    console.warn(
+      '⚠️ File system load failed, trying in-memory storage:',
+      error
+    );
   }
-  return null;
+
+  // Fallback to in-memory storage
+  return inMemoryConversations.get(conversationId) || null;
 };
 
 const deleteConversation = (conversationId: string): boolean => {
@@ -45,16 +64,17 @@ const deleteConversation = (conversationId: string): boolean => {
     const filePath = getConversationPath(conversationId);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      return true;
     }
   } catch (error) {
-    console.error('Failed to delete conversation:', error);
+    console.warn('⚠️ File system delete failed:', error);
   }
-  return false;
+
+  // Also remove from in-memory storage
+  return inMemoryConversations.delete(conversationId);
 };
 
 // Groq Cloud AI client with intelligent model selection
-class GroqCloudClient {
+export class GroqCloudClient {
   private apiKey: string;
   private baseUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -63,7 +83,37 @@ class GroqCloudClient {
     if (!apiKey) {
       throw new Error('GROQ_API_KEY environment variable is required');
     }
+    if (!apiKey.startsWith('gsk_')) {
+      throw new Error('Invalid GROQ_API_KEY format. Should start with "gsk_"');
+    }
     this.apiKey = apiKey;
+  }
+
+  // Validate API key by making a test request
+  async validateApiKey(): Promise<boolean> {
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 10,
+        }),
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid GROQ_API_KEY');
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error('❌ Groq API key validation failed:', error);
+      return false;
+    }
   }
 
   // Intelligent model selection based on task type
@@ -329,8 +379,33 @@ export const processConversation = async (
   try {
     console.log('🔄 Starting processConversation with Groq Cloud...');
 
-    const groqClient = new GroqCloudClient();
-    console.log('🤖 Groq Cloud client initialized');
+    // Check if API key is available
+    if (!process.env.GROQ_API_KEY) {
+      return {
+        message: "AI service is not configured. Please set the GROQ_API_KEY environment variable.",
+        message_type: 'text',
+        nodes: [],
+        connections: [],
+        questions: [],
+        isComplete: false,
+      };
+    }
+
+    let groqClient: GroqCloudClient;
+    try {
+      groqClient = new GroqCloudClient();
+      console.log('🤖 Groq Cloud client initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize Groq client:', error);
+      return {
+        message: "AI service configuration error. Please check your GROQ_API_KEY.",
+        message_type: 'text',
+        nodes: [],
+        connections: [],
+        questions: [],
+        isComplete: false,
+      };
+    }
 
     // Add system prompt as first message
     const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
@@ -339,13 +414,37 @@ export const processConversation = async (
     console.log('📤 Sending to Groq Cloud...');
     sendThought?.('🤖 Generating response from Groq Cloud...');
 
-    // Send to Groq Cloud with timeout
-    const result = await Promise.race([
-      groqClient.generateResponse(allMessages),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Groq Cloud API timeout')), 30000)
-      ),
-    ]);
+    // Send to Groq Cloud with increased timeout and retry logic
+    let result: string | undefined;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`🔄 Attempt ${attempt}/3 to call Groq Cloud...`);
+        result = await Promise.race([
+          groqClient.generateResponse(allMessages),
+          new Promise<never>(
+            (_, reject) =>
+              setTimeout(
+                () => reject(new Error('Groq Cloud API timeout')),
+                60000
+              ) // Increased to 60 seconds
+          ),
+        ]);
+        break; // Success, exit retry loop
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
+        if (attempt < 3) {
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
+      }
+    }
+
+    if (!result) {
+      throw lastError || new Error('All retry attempts failed');
+    }
 
     console.log('✅ Groq Cloud response received');
     const content = result;
@@ -487,14 +586,18 @@ export const getConversationHistory = (
 // Function to clear all conversations
 export const clearAllConversations = (): void => {
   try {
+    // Clear file system conversations
     const files = fs.readdirSync(CONVERSATIONS_DIR);
     files.forEach(file => {
       if (file.endsWith('.json')) {
         fs.unlinkSync(path.join(CONVERSATIONS_DIR, file));
       }
     });
-    console.log('✅ All conversations cleared');
   } catch (error) {
-    console.error('Failed to clear conversations:', error);
+    console.warn('⚠️ Could not clear file system conversations:', error);
   }
+
+  // Clear in-memory conversations
+  inMemoryConversations.clear();
+  console.log('✅ All conversations cleared (file system + memory)');
 };
