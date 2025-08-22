@@ -1,9 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as fs from 'fs';
 import * as path from 'path';
-
-// Lazy initialization of Google AI client
-let genAI: GoogleGenerativeAI | null = null;
 
 // File-based conversation store for persistence
 const CONVERSATIONS_DIR = path.join(__dirname, '../../conversations');
@@ -17,7 +13,10 @@ const getConversationPath = (conversationId: string): string => {
   return path.join(CONVERSATIONS_DIR, `${conversationId}.json`);
 };
 
-const saveConversation = (conversationId: string, messages: ConversationMessage[]): void => {
+const saveConversation = (
+  conversationId: string,
+  messages: ConversationMessage[]
+): void => {
   try {
     const filePath = getConversationPath(conversationId);
     fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
@@ -26,7 +25,9 @@ const saveConversation = (conversationId: string, messages: ConversationMessage[
   }
 };
 
-const loadConversation = (conversationId: string): ConversationMessage[] | null => {
+const loadConversation = (
+  conversationId: string
+): ConversationMessage[] | null => {
   try {
     const filePath = getConversationPath(conversationId);
     if (fs.existsSync(filePath)) {
@@ -52,16 +53,103 @@ const deleteConversation = (conversationId: string): boolean => {
   return false;
 };
 
-const getGoogleAIClient = (): GoogleGenerativeAI => {
-  if (!genAI) {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+// Groq Cloud AI client with intelligent model selection
+class GroqCloudClient {
+  private apiKey: string;
+  private baseUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
+
+  constructor() {
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      throw new Error('GOOGLE_AI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+      throw new Error('GROQ_API_KEY environment variable is required');
     }
-    genAI = new GoogleGenerativeAI(apiKey);
+    this.apiKey = apiKey;
   }
-  return genAI;
-};
+
+  // Intelligent model selection based on task type
+  private selectBestModel(messages: ConversationMessage[]): string {
+    const lastUserMessage =
+      messages.filter(m => m.role === 'user').pop()?.content || '';
+    const messageLength = lastUserMessage.length;
+
+    // Analyze the complexity of the request
+    const complexityIndicators = [
+      'complex',
+      'advanced',
+      'detailed',
+      'comprehensive',
+      'multiple',
+      'integration',
+      'database',
+      'transform',
+      'pipeline',
+      'workflow',
+    ];
+
+    const speedIndicators = [
+      'quick',
+      'simple',
+      'basic',
+      'fast',
+      'test',
+      'check',
+    ];
+
+    const hasComplexity = complexityIndicators.some(indicator =>
+      lastUserMessage.toLowerCase().includes(indicator)
+    );
+
+    const needsSpeed = speedIndicators.some(indicator =>
+      lastUserMessage.toLowerCase().includes(indicator)
+    );
+
+    // Model selection logic - using current available models
+    if (needsSpeed && messageLength < 100) {
+      console.log('🚀 Using LLaMA 3.1 8B for fast, simple task');
+      return 'llama3-8b-8192';
+    } else if (hasComplexity || messageLength > 200) {
+      console.log('🧠 Using LLaMA 3.3 70B for complex task');
+      return 'llama-3.3-70b-versatile';
+    } else {
+      console.log('⚡ Using LLaMA 3.1 8B Instant for balanced performance');
+      return 'llama-3.1-8b-instant';
+    }
+  }
+
+  async generateResponse(messages: ConversationMessage[]): Promise<string> {
+    // Automatically select the best model for this task
+    const selectedModel = this.selectBestModel(messages);
+
+    const openAIMessages = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        messages: openAIMessages,
+        max_tokens: 2000,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Groq Cloud API error: ${response.status} - ${errorText}`
+      );
+    }
+
+    const data = (await response.json()) as any;
+    return data.choices[0].message.content;
+  }
+}
 
 export interface ConversationMessage {
   role: 'user' | 'assistant' | 'system';
@@ -96,10 +184,10 @@ export interface Question {
 
 export interface DataFlowResponse {
   message: string;
-  message_type?: 'text' | 'markdown' | 'code';
+  message_type: 'text' | 'markdown' | 'code';
   nodes: DataFlowNode[];
   connections: DataFlowConnection[];
-  questions?: Question[];
+  questions: Question[];
   isComplete: boolean;
 }
 
@@ -110,37 +198,84 @@ const SYSTEM_PROMPT = `You are a data integration expert helping users build dat
 3. Generate structured data flow diagrams with nodes and connections
 4. Provide configuration suggestions for each component
 
-IMPORTANT: Always respond with ONLY a JSON object. Do not include markdown formatting, code blocks, or any other text.
+CRITICAL WORKFLOW REQUIREMENTS:
+- ALWAYS create exactly 3 nodes: 1 source, 1 transform, 1 destination
+- Source node: Where data comes from (databases, APIs, file systems)
+- Transform node: Data processing, filtering, mapping, aggregation
+- Destination node: Where data goes (warehouses, APIs, applications)
+- Create connections: source → transform → destination
+
+NODE STATUS PROGRESSION (CRITICAL):
+- "pending": Initial state, no configuration provided
+- "partial": Some configuration provided, but incomplete (when user provides some but not all required fields)
+- "complete": Fully configured and ready to use (when all required fields are provided)
+- "error": Configuration issues or validation failures
+
+STATUS UPDATE RULES:
+- When user provides answers, update relevant nodes from "pending" to "partial" or "complete"
+- A node is "complete" when ALL its required fields are provided
+- A node is "partial" when SOME but not all required fields are provided
+- Set isComplete: true ONLY when ALL nodes are "complete" and no questions remain
+- Always update node statuses based on the information provided in user answers
+
+IMPORTANT: Always respond with ONLY a valid JSON object. Do not include markdown formatting, code blocks, or any other text.
+
+CRITICAL JSON REQUIREMENTS:
+- Ensure all strings are properly quoted with double quotes
+- Use proper JSON syntax (commas, brackets, braces)
+- Escape special characters in strings (\\n, \\t, \\")
+- Do not include trailing commas
+- Ensure all object properties are properly quoted
+
+CRITICAL: When including code in responses:
+- Wrap ALL code blocks in markdown format: \`\`\`python ... \`\`\`
+- Script content in node configs should be properly formatted markdown
+- Messages with message_type "code" must contain markdown code blocks
 
 Response format (respond with ONLY this JSON structure):
 {
-  "message": "I'll help you connect Shopify to Snowflake. I need a few details first...",
-  "message_type": "text",
+  "message": "string",
+  "message_type": "text|markdown|code",
   "nodes": [
     {
-      "id": "shopify-1",
+      "id": "source-node",
       "type": "source",
-      "name": "Shopify Store",
-      "status": "pending",
-      "config": { "type": "shopify", "required_fields": ["store_url", "api_key"] }
-    }
-  ],
-  "connections": [],
-  "questions": [
-    {
-      "id": "q1",
-      "text": "What's your Shopify store URL?",
-      "node_id": "shopify-1",
-      "field": "store_url",
-      "type": "text",
-      "required": true
+      "name": "Source Name",
+      "status": "pending|partial|complete|error",
+      "config": { "type": "service_type", "required_fields": [...] }
     },
     {
-      "id": "q2", 
-      "text": "Do you have API credentials?",
-      "node_id": "shopify-1",
-      "field": "api_key",
-      "type": "text",
+      "id": "transform-node", 
+      "type": "transform",
+      "name": "Transform Name",
+      "status": "pending|partial|complete|error",
+      "config": { "type": "processing_type", "operations": [...] }
+    },
+    {
+      "id": "destination-node",
+      "type": "destination", 
+      "name": "Destination Name",
+      "status": "pending|partial|complete|error",
+      "config": { "type": "service_type", "required_fields": [...] }
+    }
+  ],
+  "connections": [
+    {
+      "source": "source-node",
+      "target": "transform-node"
+    },
+    {
+      "source": "transform-node", 
+      "target": "destination-node"
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-id",
+      "text": "Question text?",
+      "node_id": "node-id",
+      "field": "field_name",
+      "type": "text|password|select|multiselect|textarea",
       "required": true
     }
   ],
@@ -150,7 +285,7 @@ Response format (respond with ONLY this JSON structure):
 Message types:
 - "text": Plain text message
 - "markdown": Message contains markdown formatting
-- "code": Message contains code blocks
+- "code": Message contains code blocks (wrap in markdown code blocks)
 
 Question types:
 - "text": Text input
@@ -160,137 +295,145 @@ Question types:
 - "textarea": Multi-line text input
 
 Node types:
-- source: databases, APIs, file systems
-- transform: data processing, filtering, mapping
-- destination: warehouses, APIs, applications
+- source: databases, APIs, file systems, data sources
+- transform: data processing, filtering, mapping, aggregation, cleaning
+- destination: warehouses, APIs, applications, data sinks
 
-Node status:
-- pending: initial state
-- partial: some config provided
-- complete: fully configured
-- error: configuration issues
+Node status progression:
+- pending: initial state, no configuration
+- partial: some config provided, but incomplete
+- complete: fully configured and ready
+- error: configuration issues or validation failures
 
-Remember: Respond with ONLY the JSON object, no markdown or code blocks.`;
+CONVERSATION CONTINUE RULES:
+- When processing user answers, extract relevant information and update node configurations
+- Update node statuses based on provided information:
+  * If ALL required fields for a node are provided → status: "complete"
+  * If SOME required fields for a node are provided → status: "partial"  
+  * If NO required fields for a node are provided → status: "pending"
+- IMPORTANT: Transform nodes should be configured with default processing logic when source and destination are provided
+- Transform node configuration should include data processing operations like cleaning, validation, or transformation
+- Remove questions that have been answered
+- Add new questions only if more information is needed
+- Set isComplete: true when ALL nodes are "complete" and no questions remain
+- If source and destination are complete, configure transform node with default processing logic and mark it complete
+- Always preserve existing node configurations and only update what's provided
+- CRITICAL: When all 3 nodes are "complete", set isComplete: true and remove all questions
+
+Remember: ALWAYS create exactly 3 nodes (source, transform, destination) and respond with ONLY the JSON object, no markdown or code blocks.`;
 
 export const processConversation = async (
-  messages: ConversationMessage[]
+  messages: ConversationMessage[],
+  sendThought?: (thought: string) => void
 ): Promise<DataFlowResponse> => {
   try {
-    const genAI = getGoogleAIClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    // Convert messages to Gemini format
-    const chat = model.startChat({
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
-      },
-    });
+    console.log('🔄 Starting processConversation with Groq Cloud...');
+
+    const groqClient = new GroqCloudClient();
+    console.log('🤖 Groq Cloud client initialized');
 
     // Add system prompt as first message
-    const systemMessage = { role: 'user', content: SYSTEM_PROMPT };
+    const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
     const allMessages = [systemMessage, ...messages];
-    
-    // Send all messages to Gemini with timeout
+
+    console.log('📤 Sending to Groq Cloud...');
+    sendThought?.('🤖 Generating response from Groq Cloud...');
+
+    // Send to Groq Cloud with timeout
     const result = await Promise.race([
-      chat.sendMessage(allMessages.map(m => m.content).join('\n\n')),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Gemini API timeout')), 30000)
-      )
+      groqClient.generateResponse(allMessages),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Groq Cloud API timeout')), 30000)
+      ),
     ]);
-    
-    const response = await result.response;
-    const content = response.text();
-    
+
+    console.log('✅ Groq Cloud response received');
+    const content = result;
+
     if (!content) {
-      throw new Error('No response from Google AI');
+      throw new Error('No response from Groq Cloud');
     }
 
-    // Try to extract JSON from the response (handle markdown code blocks)
+    console.log('📄 Raw Groq Cloud content:', content);
+
+    // Try to extract JSON from the response
     let jsonContent = content;
-    
+
     // Remove markdown code blocks if present
     if (content.includes('```json')) {
-      const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch) {
-        jsonContent = codeBlockMatch[1].trim();
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1].trim();
       }
-    }
-    
-    // Try to find JSON object
-    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        
-        return {
-          message: parsed.message || content,
-          message_type: parsed.message_type || 'text',
-          nodes: parsed.nodes || [],
-          connections: parsed.connections || [],
-          questions: parsed.questions || [],
-          isComplete: parsed.isComplete || false,
-        };
-      } catch (parseError) {
-        console.error('Failed to parse JSON from AI response:', parseError);
-        console.error('Content was:', jsonContent);
-        // Return fallback response instead of throwing
-        return createFallbackResponse('I received a response but couldn\'t parse it properly. Please try again.');
+    } else if (content.includes('```')) {
+      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1].trim();
       }
     }
 
-    // Fallback: return the text response
-    return createFallbackResponse(content);
+    // Parse the JSON
+    const parsed = JSON.parse(jsonContent);
+    console.log('✅ JSON parsed successfully');
+
+    // Validate the response structure
+    if (
+      !parsed.message ||
+      !parsed.nodes ||
+      !parsed.connections ||
+      !parsed.questions
+    ) {
+      throw new Error('Invalid response structure');
+    }
+
+    return {
+      message: parsed.message,
+      message_type: parsed.message_type || 'text',
+      nodes: parsed.nodes || [],
+      connections: parsed.connections || [],
+      questions: parsed.questions || [],
+      isComplete: parsed.isComplete || false,
+    };
   } catch (error: any) {
-    console.error('Error calling Google AI:', error);
-    
-    // Return a graceful error response instead of throwing
-    return createFallbackResponse(
-      'I\'m having trouble processing your request right now. Please try again in a moment.',
-      error.message
-    );
-  }
-};
+    console.error('💥 Error calling Groq Cloud:', error);
 
-// Helper function to create fallback responses
-const createFallbackResponse = (message: string, error?: string): DataFlowResponse => {
-  if (error) {
-    console.error('AI Service Error:', error);
+    // Return a graceful error response
+    return {
+      message:
+        "I'm having trouble processing your request right now. Please try again in a moment.",
+      message_type: 'text',
+      nodes: [],
+      connections: [],
+      questions: [],
+      isComplete: false,
+    };
   }
-  
-  return {
-    message: message,
-    message_type: 'text',
-    nodes: [],
-    connections: [],
-    questions: [],
-    isComplete: false,
-  };
 };
 
 export const generateFlowFromDescription = async (
   description: string,
-  conversationId: string
+  conversationId: string,
+  sendThought?: (thought: string) => void
 ): Promise<DataFlowResponse> => {
   const messages: ConversationMessage[] = [
     {
       role: 'user',
-      content: `I want to create a data flow: ${description}. Please help me set this up.`
-    }
+      content: `I want to create a data flow: ${description}. Please help me set this up.`,
+    },
   ];
 
   // Store the initial conversation
   saveConversation(conversationId, messages);
 
-  const response = await processConversation(messages);
-  
+  const response = await processConversation(messages, sendThought);
+
   // Store the assistant's response
   const updatedMessages: ConversationMessage[] = [
     ...messages,
     {
       role: 'assistant' as const,
-      content: JSON.stringify(response)
-    }
+      content: JSON.stringify(response),
+    },
   ];
   saveConversation(conversationId, updatedMessages);
 
@@ -299,31 +442,35 @@ export const generateFlowFromDescription = async (
 
 export const updateFlowWithAnswer = async (
   conversationId: string,
-  answer: string
+  answer: string,
+  sendThought?: (thought: string) => void
 ): Promise<DataFlowResponse> => {
   const conversationHistory = loadConversation(conversationId);
-  
+
   if (!conversationHistory) {
     throw new Error('Conversation not found. Please start a new conversation.');
   }
+
+  // Create a more specific message for the AI to understand this is a continuation
+  const continueMessage = `The user has provided the following answer to continue configuring the workflow: "${answer}". Please update the workflow nodes, their statuses, and configurations based on this information. Remember to update node statuses from "pending" to "partial" or "complete" based on what information was provided.`;
 
   const messages: ConversationMessage[] = [
     ...conversationHistory,
     {
       role: 'user',
-      content: answer
-    }
+      content: continueMessage,
+    },
   ];
 
-  const response = await processConversation(messages);
-  
+  const response = await processConversation(messages, sendThought);
+
   // Store the updated conversation
   const updatedMessages: ConversationMessage[] = [
     ...messages,
     {
       role: 'assistant' as const,
-      content: JSON.stringify(response)
-    }
+      content: JSON.stringify(response),
+    },
   ];
   saveConversation(conversationId, updatedMessages);
 
@@ -331,27 +478,22 @@ export const updateFlowWithAnswer = async (
 };
 
 // Helper function to get conversation history (for debugging)
-export const getConversationHistory = (conversationId: string): ConversationMessage[] | undefined => {
-  return loadConversation(conversationId) || undefined;
+export const getConversationHistory = (
+  conversationId: string
+): ConversationMessage[] | null => {
+  return loadConversation(conversationId);
 };
 
-// Helper function to clear conversation (for cleanup)
-export const clearConversation = (conversationId: string): boolean => {
-  return deleteConversation(conversationId);
-};
-
-// Clear all conversations (call this on server start)
+// Function to clear all conversations
 export const clearAllConversations = (): void => {
   try {
-    if (fs.existsSync(CONVERSATIONS_DIR)) {
-      const files = fs.readdirSync(CONVERSATIONS_DIR);
-      files.forEach(file => {
-        if (file.endsWith('.json')) {
-          fs.unlinkSync(path.join(CONVERSATIONS_DIR, file));
-        }
-      });
-      console.log(`🧹 Cleared ${files.length} conversation files`);
-    }
+    const files = fs.readdirSync(CONVERSATIONS_DIR);
+    files.forEach(file => {
+      if (file.endsWith('.json')) {
+        fs.unlinkSync(path.join(CONVERSATIONS_DIR, file));
+      }
+    });
+    console.log('✅ All conversations cleared');
   } catch (error) {
     console.error('Failed to clear conversations:', error);
   }

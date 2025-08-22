@@ -4,7 +4,8 @@ A Node.js/TypeScript server that provides AI-powered data flow conversation capa
 
 ## Features
 
-- **OpenAI Integration**: Uses GPT-3.5-turbo for intelligent data flow conversations
+- **Groq Cloud AI Integration**: Uses Groq Cloud's unlimited access to LLaMA-2 70B, Mixtral-8x7B, and Gemma 7B models
+- **Intelligent Model Selection**: Automatically chooses the best model for each task
 - **WebSocket Support**: Real-time communication for interactive chat interface
 - **REST API**: HTTP endpoints for data flow processing
 - **TypeScript**: Full type safety and modern development experience
@@ -13,20 +14,22 @@ A Node.js/TypeScript server that provides AI-powered data flow conversation capa
 ## Setup
 
 1. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 2. **Environment Configuration**:
    - Copy `env.example` to `.env`
-   - Add your OpenAI API key:
+   - Add your Groq Cloud API key (free at https://console.groq.com/):
      ```
-     OPENAI_API_KEY=your_openai_api_key_here
+     GROQ_API_KEY=gsk-your-groq-cloud-api-key-here
      PORT=3001
      NODE_ENV=development
      ```
 
 3. **Development**:
+
    ```bash
    npm run dev
    ```
@@ -36,6 +39,22 @@ A Node.js/TypeScript server that provides AI-powered data flow conversation capa
    npm run build
    npm start
    ```
+
+## Testing
+
+Run the integration test to verify Groq Cloud is working:
+
+```bash
+npm test
+```
+
+## Intelligent Model Selection
+
+The system automatically selects the optimal model for each task:
+
+- **Gemma 7B**: Used for simple, fast tasks (quick responses, basic questions)
+- **Mixtral 8x7B**: Used for balanced performance (most workflows)
+- **LLaMA-2 70B**: Used for complex tasks (detailed integrations, multiple requirements)
 
 ## API Endpoints
 
@@ -65,6 +84,7 @@ The server is designed to handle conversations about data flows. When a user des
 ### Example Usage
 
 **Starting a conversation**:
+
 ```javascript
 // WebSocket
 ws.send(JSON.stringify({
@@ -83,6 +103,7 @@ POST /api/ai/conversation/start
 ```
 
 **Continuing a conversation**:
+
 ```javascript
 // WebSocket
 ws.send(JSON.stringify({
@@ -108,11 +129,11 @@ The AI responses include structured data for rendering flow diagrams:
 
 ```typescript
 interface DataFlowResponse {
-  message: string;           // Human-readable message
-  nodes: DataFlowNode[];     // Flow diagram nodes
+  message: string; // Human-readable message
+  nodes: DataFlowNode[]; // Flow diagram nodes
   connections: DataFlowConnection[]; // Connections between nodes
-  questions?: string[];      // Follow-up questions
-  isComplete: boolean;       // Whether the flow is complete
+  questions?: string[]; // Follow-up questions
+  isComplete: boolean; // Whether the flow is complete
 }
 ```
 
@@ -129,18 +150,29 @@ interface DataFlowResponse {
 - **complete**: Fully configured (green)
 - **error**: Configuration issues (red)
 
+## Why Groq Cloud?
+
+- **🆓 Completely Free**: Unlimited access to multiple models
+- **⚡ Ultra-Fast**: Specialized inference hardware
+- **🎯 Smart Model Selection**: Automatically picks the best model for each task
+- **🔄 No Quotas**: No rate limiting headaches
+- **💪 Production Ready**: Great for development and demos
+- **🚀 Beta Access**: Cutting-edge models and features
+
 ## Development
 
 The server uses:
+
 - **TypeScript** for type safety
 - **Express** for HTTP server
 - **ws** for WebSocket support
-- **OpenAI** for AI conversations
+- **Groq Cloud** for AI conversations
 - **nodemon** for development hot reload
 
 ## Deployment
 
 For production deployment, consider:
+
 - Using a process manager like PM2
 - Setting up proper environment variables
 - Implementing rate limiting
