@@ -10,19 +10,11 @@ node_modules/
 .env.test
 .env.production
 
-# Ignore Vercel files
-.vercel/
-vercel.json
+# Ignore development files
+.vscode/
+*.md
+!README.md
 
-# Ignore test files
-test-*.js
-simple-test.js
-test-deployment.js
-test-vercel.js
-
-# Ignore deployment scripts
-deploy.sh
-deploy-railway.sh
-RAILWAY_DEPLOYMENT.md
-VERCEL_DEPLOYMENT.md
-deploy-render.md
+# Ignore build artifacts
+dist/
+*.map
