@@ -8,6 +8,7 @@
 3. Click "New Project" → "Deploy from GitHub repo"
 4. Select your repository: `bhavan777/ai-workflow-interface`
 5. **Important**: Select the `railway-deploy` branch (not main)
+6. Railway will use Docker to build the server (faster and more reliable)
 
 ### 2. Configure Environment Variables
 In Railway dashboard → Variables tab, add:
