@@ -1,0 +1,14 @@
+{
+  "name": "ai-workflow-interface",
+  "version": "1.0.0",
+  "description": "AI-powered workflow interface for data pipeline creation",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:server": "prettier --write server/",
+    "format:client": "prettier --write client/"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

@@ -18,16 +18,19 @@ This project demonstrates a modern frontend application with a Node.js backend t
 ### Backend Setup
 
 1. **Navigate to server directory**:
+
    ```bash
    cd server
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Configure environment**:
+
    ```bash
    cp env.example .env
    # Edit .env and add your OpenAI API key
@@ -43,6 +46,7 @@ The server will run on `http://localhost:3001`
 ### Frontend Setup (Coming Soon)
 
 The frontend will be implemented in the `client/` directory with:
+
 - React 18+ with TypeScript
 - Tailwind CSS for styling
 - React Router for navigation
@@ -52,12 +56,14 @@ The frontend will be implemented in the `client/` directory with:
 ## 📡 API Endpoints
 
 ### REST API
+
 - `GET /health` - Health check
 - `GET /api/ai/workflows` - Get workflow templates
 - `POST /api/ai/conversation/start` - Start data flow conversation
 - `POST /api/ai/conversation/continue` - Continue conversation
 
 ### WebSocket Events
+
 - `conversation_start` - Start new conversation
 - `conversation_continue` - Continue existing conversation
 - `status` - Processing status updates
@@ -66,6 +72,7 @@ The frontend will be implemented in the `client/` directory with:
 ## 🎨 Features
 
 ### Core Requirements ✅
+
 - [x] Backend with AI conversation capabilities
 - [x] WebSocket support for real-time communication
 - [x] Structured data flow generation
@@ -77,6 +84,7 @@ The frontend will be implemented in the `client/` directory with:
 - [ ] Properties panel
 
 ### Bonus Features 🎯
+
 - [ ] Dark/light theme toggle
 - [ ] Mobile-responsive design
 - [ ] Loading states
@@ -87,6 +95,7 @@ The frontend will be implemented in the `client/` directory with:
 ## 🔧 Development
 
 ### Backend Development
+
 ```bash
 cd server
 npm run dev    # Start with hot reload
@@ -95,6 +104,7 @@ npm start      # Run production build
 ```
 
 ### Testing
+
 ```bash
 cd server
 node test-server.js  # Test WebSocket and HTTP endpoints
@@ -106,20 +116,22 @@ The AI generates structured responses that include:
 
 ```typescript
 interface DataFlowResponse {
-  message: string;           // Human-readable message
-  nodes: DataFlowNode[];     // Flow diagram nodes
+  message: string; // Human-readable message
+  nodes: DataFlowNode[]; // Flow diagram nodes
   connections: DataFlowConnection[]; // Node connections
-  questions?: string[];      // Follow-up questions
-  isComplete: boolean;       // Flow completion status
+  questions?: string[]; // Follow-up questions
+  isComplete: boolean; // Flow completion status
 }
 ```
 
 ### Node Types
+
 - **Source** (blue): Databases, APIs, file systems
 - **Transform** (purple): Data processing, filtering, mapping
 - **Destination** (green): Warehouses, APIs, applications
 
 ### Node Status
+
 - **Pending** (orange): Initial state
 - **Partial** (blue): Some configuration provided
 - **Complete** (green): Fully configured
@@ -128,13 +140,16 @@ interface DataFlowResponse {
 ## 🚀 Deployment
 
 ### Backend Deployment
+
 The server can be deployed to:
+
 - **Railway**: Easy Node.js deployment
 - **Render**: Free tier available
 - **Heroku**: Traditional Node.js hosting
 - **Vercel**: Serverless functions
 
 ### Environment Variables
+
 ```env
 PORT=3001
 NODE_ENV=production

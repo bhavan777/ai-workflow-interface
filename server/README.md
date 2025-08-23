@@ -16,18 +16,21 @@ A Node.js/TypeScript backend server for the AI Workflow Interface, providing int
 ## 🛠️ Setup
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - Groq Cloud API key
 
 ### Installation
 
 1. **Clone and install dependencies:**
+
 ```bash
 cd server
 npm install
 ```
 
 2. **Set up environment variables:**
+
 ```bash
 cp env.example .env
 # Edit .env and add your GROQ_API_KEY
@@ -39,6 +42,7 @@ cp env.example .env
    - Generate an API key (starts with `gsk_`)
 
 4. **Start the server:**
+
 ```bash
 npm run dev
 ```
@@ -47,36 +51,40 @@ npm run dev
 
 ### Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `GROQ_API_KEY` | Groq Cloud API key | ✅ | - |
-| `PORT` | Server port | ❌ | 3001 |
-| `NODE_ENV` | Environment | ❌ | development |
-| `DEBUG` | Enable debug logging | ❌ | false |
+| Variable       | Description          | Required | Default     |
+| -------------- | -------------------- | -------- | ----------- |
+| `GROQ_API_KEY` | Groq Cloud API key   | ✅       | -           |
+| `PORT`         | Server port          | ❌       | 3001        |
+| `NODE_ENV`     | Environment          | ❌       | development |
+| `DEBUG`        | Enable debug logging | ❌       | false       |
 
 ### Model Selection
 
 The system automatically selects the best Groq model:
 
 - **🚀 LLaMA 3.1 8B Instant**: Fast, simple tasks
-- **⚡ LLaMA 3.1 8B**: Balanced performance  
+- **⚡ LLaMA 3.1 8B**: Balanced performance
 - **🧠 LLaMA 3.3 70B**: Complex workflows
 
 ## 📡 API Endpoints
 
 ### Health Check
+
 ```bash
 GET /health
 ```
+
 Returns server and Groq API health status.
 
 ### AI Workflow
+
 ```bash
 POST /api/ai/start
 POST /api/ai/continue
 ```
 
 ### WebSocket
+
 ```bash
 ws://localhost:3001
 ```
@@ -84,11 +92,13 @@ ws://localhost:3001
 ## 🚀 Deployment
 
 ### Render (Recommended)
+
 1. Connect your GitHub repository
 2. Set environment variables in Render dashboard
 3. Deploy automatically on push
 
 ### Manual Deployment
+
 ```bash
 npm run build
 npm start
@@ -99,23 +109,28 @@ npm start
 ### Common Issues
 
 **❌ "GROQ_API_KEY environment variable is required"**
+
 - Ensure your API key is set in environment variables
 - Check that the key starts with `gsk_`
 
 **❌ "Invalid GROQ_API_KEY format"**
+
 - Verify your API key starts with `gsk_`
 - Regenerate the key in Groq Console if needed
 
 **❌ "Groq API key validation failed"**
+
 - Check your internet connection
 - Verify the API key is valid and has credits
 - Check Groq service status
 
 **❌ "File system save failed"**
+
 - The system will automatically use in-memory storage
 - This is normal in production environments
 
 **❌ "All retry attempts failed"**
+
 - Check Groq API status
 - Verify your API key has sufficient credits
 - Try again in a few minutes
@@ -134,6 +149,7 @@ npm start
 ### Logs
 
 Monitor logs for:
+
 - `✅ Groq API key validated successfully`
 - `⚠️ Groq API key validation failed`
 - `🔄 Attempt X/3 to call Groq Cloud...`

@@ -382,7 +382,8 @@ export const processConversation = async (
     // Check if API key is available
     if (!process.env.GROQ_API_KEY) {
       return {
-        message: "AI service is not configured. Please set the GROQ_API_KEY environment variable.",
+        message:
+          'AI service is not configured. Please set the GROQ_API_KEY environment variable.',
         message_type: 'text',
         nodes: [],
         connections: [],
@@ -398,7 +399,8 @@ export const processConversation = async (
     } catch (error) {
       console.error('❌ Failed to initialize Groq client:', error);
       return {
-        message: "AI service configuration error. Please check your GROQ_API_KEY.",
+        message:
+          'AI service configuration error. Please check your GROQ_API_KEY.',
         message_type: 'text',
         nodes: [],
         connections: [],

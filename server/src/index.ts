@@ -44,6 +44,7 @@ app.use(
         'http://127.0.0.1:3001',
         'https://ai-workflow-server.onrender.com',
         'https://*.onrender.com',
+        'https://*.railway.app',
         'http://localhost:5173', // Vite dev server
         'http://localhost:4173', // Vite preview
       ];

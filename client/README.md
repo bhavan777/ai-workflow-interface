@@ -26,12 +26,14 @@ A modern React + TypeScript + Tailwind CSS frontend for the AI Workflow Interfac
 ## 🎨 Theme
 
 ### HubSpot-Inspired Orange Theme
+
 - **Primary Color**: Orange (`hsl(24 95% 53%)`)
 - **Gradients**: Orange to orange-600
 - **Dark Mode**: Full support with proper contrast
 - **CSS Variables**: Dynamic theming system
 
 ### Color Palette
+
 - **Primary**: HubSpot Orange
 - **Secondary**: Gray scale
 - **Status Colors**: Green (success), Yellow (warning), Red (error)
@@ -40,21 +42,25 @@ A modern React + TypeScript + Tailwind CSS frontend for the AI Workflow Interfac
 ## 📦 Installation
 
 1. **Install dependencies:**
+
 ```bash
 npm install
 ```
 
 2. **Start development server:**
+
 ```bash
 npm run dev
 ```
 
 3. **Build for production:**
+
 ```bash
 npm run build
 ```
 
 4. **Preview production build:**
+
 ```bash
 npm run preview
 ```
@@ -62,15 +68,18 @@ npm run preview
 ## 🔧 Development
 
 ### Prerequisites
+
 - Node.js 18+
 - Backend server running on port 3001
 
 ### Development Workflow
+
 1. Start the backend server: `cd ../server && npm run dev`
 2. Start the frontend: `npm run dev`
 3. Open http://localhost:3000
 
 ### API Proxy
+
 The development server automatically proxies `/api/*` requests to `http://localhost:3001`, so you can use relative URLs in your API calls.
 
 ## 📁 Project Structure
@@ -100,13 +109,16 @@ client/
 ## 🎨 Design System
 
 ### Components
+
 - **Button**: Primary, secondary, ghost, and outline variants
 - **Input**: Consistent styling with focus states
 - **Card**: Clean containers with subtle shadows
 - **Status Badges**: Color-coded for different states
 
 ### Icons
+
 Using Lucide React icons:
+
 - **Brain**: AI/Intelligence
 - **Database**: Data sources
 - **Zap**: Transformations
@@ -120,6 +132,7 @@ Using Lucide React icons:
 The client communicates with the backend through REST API endpoints:
 
 ### Start Workflow
+
 ```typescript
 POST /api/ai/start
 {
@@ -128,6 +141,7 @@ POST /api/ai/start
 ```
 
 ### Continue Workflow
+
 ```typescript
 POST /api/ai/continue
 {
@@ -139,12 +153,15 @@ POST /api/ai/continue
 ## 🚀 Deployment
 
 ### Build
+
 ```bash
 npm run build
 ```
 
 ### Deploy
+
 The built files in `dist/` can be deployed to any static hosting service:
+
 - Vercel
 - Netlify
 - GitHub Pages
@@ -154,6 +171,7 @@ The built files in `dist/` can be deployed to any static hosting service:
 ## 🌙 Dark Mode
 
 The application supports both light and dark modes:
+
 - **Toggle**: Click the sun/moon icon in the header
 - **Persistence**: Theme preference is saved in localStorage
 - **System Preference**: Automatically detects system theme on first visit

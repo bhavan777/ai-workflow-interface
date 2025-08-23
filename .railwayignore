@@ -1,0 +1,28 @@
+# Ignore client files for Railway deployment
+client/
+node_modules/
+.git/
+.DS_Store
+*.log
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Ignore Vercel files
+.vercel/
+vercel.json
+
+# Ignore test files
+test-*.js
+simple-test.js
+test-deployment.js
+test-vercel.js
+
+# Ignore deployment scripts
+deploy.sh
+deploy-railway.sh
+RAILWAY_DEPLOYMENT.md
+VERCEL_DEPLOYMENT.md
+deploy-render.md
