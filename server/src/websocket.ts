@@ -1,73 +1,68 @@
 import { WebSocket } from 'ws';
 import {
-  generateFlowFromDescription,
   getConversationHistory,
-  updateFlowWithAnswer,
+  processMessage,
+  saveConversation,
 } from './services/aiService';
 
 // Helper function for adding delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export interface WorkflowMessage {
-  type:
-    | 'conversation_start'
-    | 'conversation_continue'
-    | 'conversation_load'
-    | 'error'
-    | 'status'
-    | 'thought';
-  id: string;
-  data?: any;
-  error?: string;
+// Helper function to generate unique IDs
+const generateId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+export interface Message {
+  id: string; // Unique message ID
+  response_to?: string; // ID of message this responds to (for conversation threading)
+  role: 'user' | 'assistant'; // Who sent the message
+  type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
+  content: string; // Main message content (or thought content)
+  timestamp: string; // ISO timestamp
+
+  // For assistant MESSAGE responses - only include if workflow state changed
+  nodes?: DataFlowNode[];
+  connections?: DataFlowConnection[];
+
+  // For status updates
+  status?: 'processing' | 'complete' | 'error';
 }
 
-// Helper function to send thought events to client
-const sendThought = (ws: WebSocket, messageId: string, thought: string) => {
-  ws.send(
-    JSON.stringify({
-      type: 'thought',
-      id: messageId,
-      data: {
-        message: thought,
-        timestamp: new Date().toISOString(),
-      },
-    })
-  );
-};
+export interface DataFlowNode {
+  id: string;
+  type: 'source' | 'transform' | 'destination';
+  name: string;
+  status: 'pending' | 'partial' | 'complete' | 'error';
+  config?: Record<string, any>;
+  position?: { x: number; y: number };
+}
+
+export interface DataFlowConnection {
+  id: string;
+  source: string;
+  target: string;
+  status: 'pending' | 'complete' | 'error';
+}
 
 export const handleWebSocketConnection = (ws: WebSocket) => {
   console.log('🔌 New WebSocket connection established');
 
   ws.on('message', async (message: string) => {
     try {
-      const parsedMessage: WorkflowMessage = JSON.parse(message);
+      const parsedMessage: Message = JSON.parse(message);
 
-      switch (parsedMessage.type) {
-        case 'conversation_start':
-          await handleConversationStart(ws, parsedMessage);
-          break;
-        case 'conversation_continue':
-          await handleConversationContinue(ws, parsedMessage);
-          break;
-        case 'conversation_load':
-          await handleConversationLoad(ws, parsedMessage);
-          break;
-        default:
-          ws.send(
-            JSON.stringify({
-              type: 'error',
-              id: parsedMessage.id,
-              error: 'Unknown message type',
-            })
-          );
-      }
+      // All messages go through the same handler
+      await handleMessage(ws, parsedMessage);
     } catch (error) {
       console.error('Error processing message:', error);
       ws.send(
         JSON.stringify({
-          type: 'error',
-          id: 'unknown',
-          error: 'Invalid message format',
+          id: generateId(),
+          role: 'assistant',
+          type: 'ERROR',
+          content: 'Invalid message format',
+          timestamp: new Date().toISOString(),
         })
       );
     }
@@ -82,189 +77,78 @@ export const handleWebSocketConnection = (ws: WebSocket) => {
   });
 };
 
-const handleConversationLoad = async (
-  ws: WebSocket,
-  message: WorkflowMessage
-) => {
+const handleMessage = async (ws: WebSocket, message: Message) => {
   try {
-    console.log('📂 Loading conversation:', message.id);
-
-    const { conversationId } = message.data;
-    const conversationHistory = getConversationHistory(conversationId);
-
-    if (!conversationHistory) {
-      ws.send(
-        JSON.stringify({
-          type: 'error',
-          id: message.id,
-          error: 'Conversation not found',
-        })
-      );
-      return;
-    }
-
-    // Find the last assistant message to get the current workflow state
-    const lastAssistantMessage = conversationHistory
-      .filter((msg: { role: string }) => msg.role === 'assistant')
-      .pop();
-
-    if (lastAssistantMessage) {
-      try {
-        const workflowData = JSON.parse(lastAssistantMessage.content);
-        ws.send(
-          JSON.stringify({
-            type: 'conversation_load',
-            id: message.id,
-            data: {
-              conversationId,
-              messages: conversationHistory,
-              workflow: workflowData,
-            },
-          })
-        );
-      } catch (error) {
-        console.error('Error parsing workflow data:', error);
-        ws.send(
-          JSON.stringify({
-            type: 'error',
-            id: message.id,
-            error: 'Invalid conversation data',
-          })
-        );
-      }
-    } else {
-      ws.send(
-        JSON.stringify({
-          type: 'error',
-          id: message.id,
-          error: 'No workflow data found in conversation',
-        })
-      );
-    }
-  } catch (error) {
-    console.error('❌ Error loading conversation:', error);
+    // Send processing status (no nodes/connections needed)
     ws.send(
       JSON.stringify({
-        type: 'error',
-        id: message.id,
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      })
-    );
-  }
-};
-
-const handleConversationStart = async (
-  ws: WebSocket,
-  message: WorkflowMessage
-) => {
-  try {
-    console.log('🚀 Starting conversation:', message.id);
-    console.log('📝 Description:', message.data.description);
-
-    // Send status update
-    ws.send(
-      JSON.stringify({
-        type: 'status',
-        id: message.id,
-        data: { status: 'processing' },
+        id: generateId(),
+        role: 'assistant',
+        type: 'STATUS',
+        content: 'Processing your message...',
+        status: 'processing',
+        timestamp: new Date().toISOString(),
       })
     );
 
     // Add initial delay before first thought
     await delay(500);
-    sendThought(ws, message.id, '🤔 Analyzing your workflow requirements...');
 
-    const { description } = message.data;
-    const result = await generateFlowFromDescription(
-      description,
-      message.id,
-      async thought => {
+    // Send thought before processing (no nodes/connections needed)
+    ws.send(
+      JSON.stringify({
+        id: generateId(),
+        role: 'assistant',
+        type: 'THOUGHT',
+        content: '🤔 Let me understand what you need...',
+        timestamp: new Date().toISOString(),
+      })
+    );
+
+    // Get conversation history for this session
+    const conversationHistory = getConversationHistory(message.id) || [];
+
+    // Process the message
+    const response = await processMessage(
+      conversationHistory,
+      message,
+      async (thought: string) => {
         // Add delay before each thought for more natural feel
         await delay(300);
-        sendThought(ws, message.id, thought);
+
+        // Send additional thoughts during processing (no nodes/connections needed)
+        ws.send(
+          JSON.stringify({
+            id: generateId(),
+            role: 'assistant',
+            type: 'THOUGHT',
+            content: thought,
+            timestamp: new Date().toISOString(),
+          })
+        );
       }
     );
 
-    console.log('✅ Conversation result:', JSON.stringify(result, null, 2));
+    // Save the conversation with both user message and assistant response
+    const updatedConversation = [...conversationHistory, message, response];
+    saveConversation(message.id, updatedConversation);
 
     // Add final delay before sending result
     await delay(800);
 
-    // Send the result with conversation ID
-    ws.send(
-      JSON.stringify({
-        type: 'conversation_start',
-        id: message.id,
-        data: {
-          ...result,
-          conversationId: message.id,
-        },
-      })
-    );
+    ws.send(JSON.stringify(response));
 
-    console.log('📤 Sent conversation result to client');
+    console.log('📤 Sent response to client');
   } catch (error) {
-    console.error('❌ Error starting conversation:', error);
+    console.error('❌ Error handling message:', error);
     ws.send(
       JSON.stringify({
-        type: 'error',
-        id: message.id,
-        error:
+        id: generateId(),
+        role: 'assistant',
+        type: 'ERROR',
+        content:
           error instanceof Error ? error.message : 'Unknown error occurred',
-      })
-    );
-  }
-};
-
-const handleConversationContinue = async (
-  ws: WebSocket,
-  message: WorkflowMessage
-) => {
-  try {
-    // Send status update
-    ws.send(
-      JSON.stringify({
-        type: 'status',
-        id: message.id,
-        data: { status: 'processing' },
-      })
-    );
-
-    // Add delay before processing thought
-    await delay(400);
-    sendThought(ws, message.id, '🔄 Processing your response...');
-
-    const { conversationId, answer } = message.data;
-    const result = await updateFlowWithAnswer(
-      conversationId,
-      answer,
-      async thought => {
-        // Add delay before each thought
-        await delay(250);
-        sendThought(ws, message.id, thought);
-      }
-    );
-
-    // Add delay before sending final result
-    await delay(600);
-
-    // Send the result
-    ws.send(
-      JSON.stringify({
-        type: 'conversation_continue',
-        id: message.id,
-        data: result,
-      })
-    );
-  } catch (error) {
-    console.error('Error continuing conversation:', error);
-    ws.send(
-      JSON.stringify({
-        type: 'error',
-        id: message.id,
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+        timestamp: new Date().toISOString(),
       })
     );
   }

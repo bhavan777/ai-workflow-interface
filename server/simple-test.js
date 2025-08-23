@@ -1,40 +1,69 @@
-const https = require('https');
+const WebSocket = require('ws');
 
-const url =
-  'https://nexla-4l2h2vy87-bhavan777s-projects.vercel.app/api/websocket';
+console.log('🧪 Starting simple WebSocket test...\n');
 
-console.log('🧪 Simple test of deployed endpoint...');
-console.log(`🔗 URL: ${url}`);
+const ws = new WebSocket('ws://localhost:3001');
 
-const req = https.get(url, res => {
-  console.log(`📊 Status: ${res.statusCode}`);
-  console.log(`📋 Headers:`, res.headers);
+ws.on('open', () => {
+  console.log('✅ Connected to WebSocket server');
+  
+  // Send initial message
+  const message = {
+    id: 'test-1',
+    role: 'user',
+    type: 'MESSAGE',
+    content: 'I want to connect Shopify to Snowflake',
+    timestamp: new Date().toISOString()
+  };
 
-  let data = '';
-  res.on('data', chunk => {
-    data += chunk;
-  });
-
-  res.on('end', () => {
-    console.log(`📄 Response: ${data}`);
-
-    if (res.statusCode === 200) {
-      console.log('✅ Endpoint is accessible!');
-    } else if (res.statusCode === 401) {
-      console.log(
-        '⚠️ Endpoint requires authentication (GROQ_API_KEY might be missing)'
-      );
-    } else {
-      console.log(`⚠️ Unexpected status: ${res.statusCode}`);
-    }
-  });
+  console.log('📤 Sending:', message.content);
+  ws.send(JSON.stringify(message));
 });
 
-req.on('error', error => {
-  console.error('❌ Request failed:', error.message);
+let messageCount = 0;
+
+ws.on('message', (data) => {
+  messageCount++;
+  const message = JSON.parse(data.toString());
+  
+  console.log(`\n📥 Message #${messageCount}:`);
+  console.log(`   Type: ${message.type}`);
+  console.log(`   Content: ${message.content}`);
+  
+  if (message.nodes) {
+    console.log(`   Nodes: ${message.nodes.length}`);
+    message.nodes.forEach(node => {
+      console.log(`     - ${node.name}: ${node.status}`);
+    });
+  }
+  
+  // Send a response after the first assistant message
+  if (message.type === 'MESSAGE' && message.role === 'assistant' && messageCount === 6) {
+    setTimeout(() => {
+      const response = {
+        id: 'test-2',
+        role: 'user',
+        type: 'MESSAGE',
+        content: 'mystore.myshopify.com',
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('\n📤 Sending response: mystore.myshopify.com');
+      ws.send(JSON.stringify(response));
+    }, 1000);
+  }
+  
+  // Close after a few messages
+  if (messageCount > 15) {
+    console.log('\n✅ Test completed');
+    ws.close();
+  }
 });
 
-req.setTimeout(10000, () => {
-  console.log('⏰ Request timeout');
-  req.destroy();
+ws.on('error', (error) => {
+  console.error('❌ Error:', error);
+});
+
+ws.on('close', () => {
+  console.log('🔌 Connection closed');
 });

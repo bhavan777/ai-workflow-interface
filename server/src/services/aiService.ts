@@ -6,7 +6,7 @@ import * as path from 'path';
 const CONVERSATIONS_DIR = path.join(__dirname, '../../conversations');
 
 // In-memory fallback for production environments
-const inMemoryConversations = new Map<string, ConversationMessage[]>();
+const inMemoryConversations = new Map<string, Message[]>();
 
 // Ensure conversations directory exists
 if (!fs.existsSync(CONVERSATIONS_DIR)) {
@@ -23,9 +23,9 @@ const getConversationPath = (conversationId: string): string => {
   return path.join(CONVERSATIONS_DIR, `${conversationId}.json`);
 };
 
-const saveConversation = (
+export const saveConversation = (
   conversationId: string,
-  messages: ConversationMessage[]
+  messages: Message[]
 ): void => {
   try {
     // Try file system first
@@ -38,9 +38,7 @@ const saveConversation = (
   }
 };
 
-const loadConversation = (
-  conversationId: string
-): ConversationMessage[] | null => {
+const loadConversation = (conversationId: string): Message[] | null => {
   try {
     // Try file system first
     const filePath = getConversationPath(conversationId);
@@ -117,7 +115,7 @@ export class GroqCloudClient {
   }
 
   // Intelligent model selection based on task type
-  private selectBestModel(messages: ConversationMessage[]): string {
+  private selectBestModel(messages: any[]): string {
     const lastUserMessage =
       messages.filter(m => m.role === 'user').pop()?.content || '';
     const messageLength = lastUserMessage.length;
@@ -166,7 +164,7 @@ export class GroqCloudClient {
     }
   }
 
-  async generateResponse(messages: ConversationMessage[]): Promise<string> {
+  async generateResponse(messages: any[]): Promise<string> {
     // Automatically select the best model for this task
     const selectedModel = this.selectBestModel(messages);
 
@@ -201,9 +199,20 @@ export class GroqCloudClient {
   }
 }
 
-export interface ConversationMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
+export interface Message {
+  id: string; // Unique message ID
+  response_to?: string; // ID of message this responds to (for conversation threading)
+  role: 'user' | 'assistant'; // Who sent the message
+  type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
+  content: string; // Main message content (or thought content)
+  timestamp: string; // ISO timestamp
+
+  // For assistant MESSAGE responses - only include if workflow state changed
+  nodes?: DataFlowNode[];
+  connections?: DataFlowConnection[];
+
+  // For status updates
+  status?: 'processing' | 'complete' | 'error';
 }
 
 export interface DataFlowNode {
@@ -211,7 +220,7 @@ export interface DataFlowNode {
   type: 'source' | 'transform' | 'destination';
   name: string;
   status: 'pending' | 'partial' | 'complete' | 'error';
-  config?: any;
+  config?: Record<string, any>;
   position?: { x: number; y: number };
 }
 
@@ -222,173 +231,144 @@ export interface DataFlowConnection {
   status: 'pending' | 'complete' | 'error';
 }
 
-export interface Question {
-  id: string;
-  text: string;
-  node_id: string;
-  field: string;
-  type: 'text' | 'password' | 'select' | 'multiselect' | 'textarea';
-  options?: string[];
-  required?: boolean;
-}
+const SYSTEM_PROMPT = `You are a data integration expert helping users build data pipelines through conversation.
 
-export interface DataFlowResponse {
-  message: string;
-  message_type: 'text' | 'markdown' | 'code';
-  nodes: DataFlowNode[];
-  connections: DataFlowConnection[];
-  questions: Question[];
-  isComplete: boolean;
-}
+CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or after the JSON. No explanations. Just the JSON.
 
-const SYSTEM_PROMPT = `You are a data integration expert helping users build data pipelines. Your role is to:
-
-1. Understand user requirements for data flows
-2. Ask clarifying questions to gather necessary details
-3. Generate structured data flow diagrams with nodes and connections
-4. Provide configuration suggestions for each component
-
-CRITICAL WORKFLOW REQUIREMENTS:
-- ALWAYS create exactly 3 nodes: 1 source, 1 transform, 1 destination
-- Source node: Where data comes from (databases, APIs, file systems)
-- Transform node: Data processing, filtering, mapping, aggregation
-- Destination node: Where data goes (warehouses, APIs, applications)
-- Create connections: source → transform → destination
-
-NODE STATUS PROGRESSION (CRITICAL):
-- "pending": Initial state, no configuration provided
-- "partial": Some configuration provided, but incomplete (when user provides some but not all required fields)
-- "complete": Fully configured and ready to use (when all required fields are provided)
-- "error": Configuration issues or validation failures
-
-STATUS UPDATE RULES:
-- When user provides answers, update relevant nodes from "pending" to "partial" or "complete"
-- A node is "complete" when ALL its required fields are provided
-- A node is "partial" when SOME but not all required fields are provided
-- Set isComplete: true ONLY when ALL nodes are "complete" and no questions remain
-- Always update node statuses based on the information provided in user answers
-
-IMPORTANT: Always respond with ONLY a valid JSON object. Do not include markdown formatting, code blocks, or any other text.
-
-CRITICAL JSON REQUIREMENTS:
-- Ensure all strings are properly quoted with double quotes
-- Use proper JSON syntax (commas, brackets, braces)
-- Escape special characters in strings (\\n, \\t, \\")
-- Do not include trailing commas
-- Ensure all object properties are properly quoted
-
-CRITICAL: When including code in responses:
-- Wrap ALL code blocks in markdown format: \`\`\`python ... \`\`\`
-- Script content in node configs should be properly formatted markdown
-- Messages with message_type "code" must contain markdown code blocks
-
-Response format (respond with ONLY this JSON structure):
+RESPONSE FORMAT:
 {
-  "message": "string",
-  "message_type": "text|markdown|code",
+  "message": "Thank you for that information! Now I need to know: [next single question]",
   "nodes": [
     {
       "id": "source-node",
-      "type": "source",
-      "name": "Source Name",
-      "status": "pending|partial|complete|error",
-      "config": { "type": "service_type", "required_fields": [...] }
+      "type": "source", 
+      "name": "Shopify Source",
+      "status": "partial|complete|pending",
+      "config": { "store_url": "provided_value", "api_key": "provided_value" }
     },
     {
-      "id": "transform-node", 
+      "id": "transform-node",
       "type": "transform",
-      "name": "Transform Name",
-      "status": "pending|partial|complete|error",
-      "config": { "type": "processing_type", "operations": [...] }
+      "name": "Data Transform", 
+      "status": "pending",
+      "config": {}
     },
     {
       "id": "destination-node",
-      "type": "destination", 
-      "name": "Destination Name",
-      "status": "pending|partial|complete|error",
-      "config": { "type": "service_type", "required_fields": [...] }
+      "type": "destination",
+      "name": "Snowflake Destination",
+      "status": "pending", 
+      "config": {}
     }
   ],
   "connections": [
     {
+      "id": "conn1",
       "source": "source-node",
-      "target": "transform-node"
+      "target": "transform-node",
+      "status": "pending"
     },
     {
-      "source": "transform-node", 
-      "target": "destination-node"
+      "id": "conn2", 
+      "source": "transform-node",
+      "target": "destination-node",
+      "status": "pending"
     }
-  ],
-  "questions": [
-    {
-      "id": "question-id",
-      "text": "Question text?",
-      "node_id": "node-id",
-      "field": "field_name",
-      "type": "text|password|select|multiselect|textarea",
-      "required": true
-    }
-  ],
-  "isComplete": false
+  ]
 }
 
-Message types:
-- "text": Plain text message
-- "markdown": Message contains markdown formatting
-- "code": Message contains code blocks (wrap in markdown code blocks)
+RULES:
+1. ALWAYS respond with ONLY valid JSON - no other text
+2. ALWAYS ask only ONE question at a time
+3. Start with source configuration, then transform, then destination
+4. Update node status: "pending" → "partial" → "complete" based on provided info
+5. Update node config with each piece of information provided
+6. Thank user for each piece of information provided
+7. Ask the next single question needed
+8. Set node status to "complete" when all required fields for that node are provided
+9. When all nodes are "complete", provide final success message
+10. If user provides duplicate information, acknowledge it and ask for the next required field
 
-Question types:
-- "text": Text input
-- "password": Password input
-- "select": Dropdown selection
-- "multiselect": Multiple selection
-- "textarea": Multi-line text input
+CONVERSATION FLOW:
+- User starts: "I want to connect Shopify to Snowflake"
+- Assistant: {"message": "Great! Let's set up your data pipeline. What is your Shopify store URL?", "nodes": [...], "connections": [...]}
+- User: "mystore.myshopify.com"  
+- Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...]}
+- User: "abc123"
+- Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...]}
 
-Node types:
-- source: databases, APIs, file systems, data sources
-- transform: data processing, filtering, mapping, aggregation, cleaning
-- destination: warehouses, APIs, applications, data sinks
+CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
 
-Node status progression:
-- pending: initial state, no configuration
-- partial: some config provided, but incomplete
-- complete: fully configured and ready
-- error: configuration issues or validation failures
+// Helper function to generate unique IDs
+const generateId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
 
-CONVERSATION CONTINUE RULES:
-- When processing user answers, extract relevant information and update node configurations
-- Update node statuses based on provided information:
-  * If ALL required fields for a node are provided → status: "complete"
-  * If SOME required fields for a node are provided → status: "partial"  
-  * If NO required fields for a node are provided → status: "pending"
-- IMPORTANT: Transform nodes should be configured with default processing logic when source and destination are provided
-- Transform node configuration should include data processing operations like cleaning, validation, or transformation
-- Remove questions that have been answered
-- Add new questions only if more information is needed
-- Set isComplete: true when ALL nodes are "complete" and no questions remain
-- If source and destination are complete, configure transform node with default processing logic and mark it complete
-- Always preserve existing node configurations and only update what's provided
-- CRITICAL: When all 3 nodes are "complete", set isComplete: true and remove all questions
+// Helper function to get current workflow state from conversation history
+const getCurrentWorkflowState = (
+  conversationHistory: Message[]
+): { nodes?: DataFlowNode[]; connections?: DataFlowConnection[] } => {
+  // Find the last message with nodes and connections
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const message = conversationHistory[i];
+    if (message.nodes && message.connections) {
+      return { nodes: message.nodes, connections: message.connections };
+    }
+  }
+  return {};
+};
 
-Remember: ALWAYS create exactly 3 nodes (source, transform, destination) and respond with ONLY the JSON object, no markdown or code blocks.`;
+// Helper function to check if workflow state has changed
+const hasWorkflowStateChanged = (
+  currentState: { nodes?: DataFlowNode[]; connections?: DataFlowConnection[] },
+  newResponse: any
+): boolean => {
+  // If no current state, any new state is a change
+  if (!currentState.nodes && !currentState.connections) {
+    return !!(newResponse.nodes || newResponse.connections);
+  }
 
-export const processConversation = async (
-  messages: ConversationMessage[],
+  // Compare nodes
+  if (newResponse.nodes) {
+    if (
+      !currentState.nodes ||
+      JSON.stringify(currentState.nodes) !== JSON.stringify(newResponse.nodes)
+    ) {
+      return true;
+    }
+  }
+
+  // Compare connections
+  if (newResponse.connections) {
+    if (
+      !currentState.connections ||
+      JSON.stringify(currentState.connections) !==
+        JSON.stringify(newResponse.connections)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+export const processMessage = async (
+  conversationHistory: Message[],
+  currentMessage: Message,
   sendThought?: (thought: string) => void
-): Promise<DataFlowResponse> => {
+): Promise<Message> => {
   try {
-    console.log('🔄 Starting processConversation with Groq Cloud...');
+    console.log('🔄 Starting processMessage with Groq Cloud...');
 
     // Check if API key is available
     if (!process.env.GROQ_API_KEY) {
       return {
-        message:
+        id: generateId(),
+        role: 'assistant',
+        type: 'ERROR',
+        content:
           'AI service is not configured. Please set the GROQ_API_KEY environment variable.',
-        message_type: 'text',
-        nodes: [],
-        connections: [],
-        questions: [],
-        isComplete: false,
+        timestamp: new Date().toISOString(),
       };
     }
 
@@ -399,22 +379,35 @@ export const processConversation = async (
     } catch (error) {
       console.error('❌ Failed to initialize Groq client:', error);
       return {
-        message:
+        id: generateId(),
+        role: 'assistant',
+        type: 'ERROR',
+        content:
           'AI service configuration error. Please check your GROQ_API_KEY.',
-        message_type: 'text',
-        nodes: [],
-        connections: [],
-        questions: [],
-        isComplete: false,
+        timestamp: new Date().toISOString(),
       };
     }
 
+    sendThought?.('🤔 Let me think about your request...');
+
+    // Convert conversation history to AI format
+    const aiMessages = conversationHistory.map(msg => ({
+      role: msg.role,
+      content: formatMessageForAI(msg),
+    }));
+
+    // Add current message
+    aiMessages.push({
+      role: currentMessage.role,
+      content: formatMessageForAI(currentMessage),
+    });
+
     // Add system prompt as first message
     const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
-    const allMessages = [systemMessage, ...messages];
+    const allMessages = [systemMessage, ...aiMessages];
 
     console.log('📤 Sending to Groq Cloud...');
-    sendThought?.('🤖 Generating response from Groq Cloud...');
+    sendThought?.('💭 Figuring out the best way to help you...');
 
     // Send to Groq Cloud with increased timeout and retry logic
     let result: string | undefined;
@@ -473,115 +466,81 @@ export const processConversation = async (
       }
     }
 
-    // Parse the JSON
-    const parsed = JSON.parse(jsonContent);
-    console.log('✅ JSON parsed successfully');
+    // Try to parse the JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonContent);
+      console.log('✅ JSON parsed successfully');
+    } catch (parseError) {
+      console.error('❌ Failed to parse JSON response:', parseError);
+      console.log('📄 Attempted to parse:', jsonContent);
 
-    // Validate the response structure
-    if (
-      !parsed.message ||
-      !parsed.nodes ||
-      !parsed.connections ||
-      !parsed.questions
-    ) {
-      throw new Error('Invalid response structure');
+      // Return a fallback response asking for the next step
+      return {
+        id: generateId(),
+        response_to: currentMessage.id,
+        role: 'assistant',
+        type: 'MESSAGE',
+        content:
+          "I understand. Let's continue with the configuration. What is your Shopify API key?",
+        timestamp: new Date().toISOString(),
+      };
     }
 
-    return {
-      message: parsed.message,
-      message_type: parsed.message_type || 'text',
-      nodes: parsed.nodes || [],
-      connections: parsed.connections || [],
-      questions: parsed.questions || [],
-      isComplete: parsed.isComplete || false,
+    // Validate the response structure
+    if (!parsed.message) {
+      throw new Error('Invalid response structure - missing message');
+    }
+
+    sendThought?.('✨ Perfect! I have what you need.');
+
+    // Get current workflow state from conversation history
+    const currentState = getCurrentWorkflowState(conversationHistory);
+
+    // Check if workflow state has changed
+    const hasStateChange = hasWorkflowStateChanged(currentState, parsed);
+
+    // Convert AI response back to our message format
+    const response: Message = {
+      id: generateId(),
+      response_to: currentMessage.id,
+      role: 'assistant',
+      type: 'MESSAGE',
+      content: parsed.message,
+      timestamp: new Date().toISOString(),
     };
+
+    // Only include nodes and connections if state changed
+    if (hasStateChange) {
+      response.nodes = parsed.nodes || [];
+      response.connections = parsed.connections || [];
+    }
+
+    return response;
   } catch (error: any) {
     console.error('💥 Error calling Groq Cloud:', error);
 
     // Return a graceful error response
     return {
-      message:
+      id: generateId(),
+      response_to: currentMessage.id,
+      role: 'assistant',
+      type: 'ERROR',
+      content:
         "I'm having trouble processing your request right now. Please try again in a moment.",
-      message_type: 'text',
-      nodes: [],
-      connections: [],
-      questions: [],
-      isComplete: false,
+      timestamp: new Date().toISOString(),
     };
   }
 };
 
-export const generateFlowFromDescription = async (
-  description: string,
-  conversationId: string,
-  sendThought?: (thought: string) => void
-): Promise<DataFlowResponse> => {
-  const messages: ConversationMessage[] = [
-    {
-      role: 'user',
-      content: `I want to create a data flow: ${description}. Please help me set this up.`,
-    },
-  ];
-
-  // Store the initial conversation
-  saveConversation(conversationId, messages);
-
-  const response = await processConversation(messages, sendThought);
-
-  // Store the assistant's response
-  const updatedMessages: ConversationMessage[] = [
-    ...messages,
-    {
-      role: 'assistant' as const,
-      content: JSON.stringify(response),
-    },
-  ];
-  saveConversation(conversationId, updatedMessages);
-
-  return response;
-};
-
-export const updateFlowWithAnswer = async (
-  conversationId: string,
-  answer: string,
-  sendThought?: (thought: string) => void
-): Promise<DataFlowResponse> => {
-  const conversationHistory = loadConversation(conversationId);
-
-  if (!conversationHistory) {
-    throw new Error('Conversation not found. Please start a new conversation.');
-  }
-
-  // Create a more specific message for the AI to understand this is a continuation
-  const continueMessage = `The user has provided the following answer to continue configuring the workflow: "${answer}". Please update the workflow nodes, their statuses, and configurations based on this information. Remember to update node statuses from "pending" to "partial" or "complete" based on what information was provided.`;
-
-  const messages: ConversationMessage[] = [
-    ...conversationHistory,
-    {
-      role: 'user',
-      content: continueMessage,
-    },
-  ];
-
-  const response = await processConversation(messages, sendThought);
-
-  // Store the updated conversation
-  const updatedMessages: ConversationMessage[] = [
-    ...messages,
-    {
-      role: 'assistant' as const,
-      content: JSON.stringify(response),
-    },
-  ];
-  saveConversation(conversationId, updatedMessages);
-
-  return response;
+const formatMessageForAI = (message: Message): string => {
+  return message.content; // Just the text content
 };
 
 // Helper function to get conversation history (for debugging)
 export const getConversationHistory = (
   conversationId: string
-): ConversationMessage[] | null => {
+): Message[] | null => {
   return loadConversation(conversationId);
 };
 
