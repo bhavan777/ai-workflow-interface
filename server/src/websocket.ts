@@ -127,22 +127,23 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
 
     // Get conversation history for this session
     let conversationHistory = getConversationHistory(conversationId) || [];
-    
+
     // If this is a new workflow request (first message or workflow-related), clear history
-    const isNewWorkflow = conversationHistory.length === 0 || 
-                         message.content.toLowerCase().includes('shopify') ||
-                         message.content.toLowerCase().includes('snowflake') ||
-                         message.content.toLowerCase().includes('connect') ||
-                         message.content.toLowerCase().includes('pipeline') ||
-                         message.content.toLowerCase().includes('workflow');
-    
+    const isNewWorkflow =
+      conversationHistory.length === 0 ||
+      message.content.toLowerCase().includes('shopify') ||
+      message.content.toLowerCase().includes('snowflake') ||
+      message.content.toLowerCase().includes('connect') ||
+      message.content.toLowerCase().includes('pipeline') ||
+      message.content.toLowerCase().includes('workflow');
+
     if (isNewWorkflow && conversationHistory.length > 0) {
       console.log('🔄 Starting new workflow - clearing conversation history');
       conversationHistory = [];
       // Clear the saved conversation
       saveConversation(conversationId, []);
     }
-    
+
     console.log(
       `📚 Loaded conversation history (${conversationHistory.length} messages) for conversation: ${conversationId}`
     );
@@ -178,7 +179,20 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     // Add final delay before sending result
     await delay(800);
 
+    // Always send the complete response with workflow state
     ws.send(JSON.stringify(response));
+
+    // Log the workflow state being sent
+    if (response.nodes && response.connections) {
+      console.log('📊 Sent workflow state to client:');
+      console.log(`  - Nodes: ${response.nodes.length} nodes`);
+      console.log(
+        `  - Connections: ${response.connections.length} connections`
+      );
+      console.log(
+        `  - Workflow complete: ${response.workflow_complete || false}`
+      );
+    }
 
     console.log('📤 Sent response to client');
   } catch (error) {

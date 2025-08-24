@@ -21,6 +21,10 @@ interface ChatState {
   setError: (error: string | null) => void;
   clearMessages: () => void;
   addUserMessage: (content: string) => void;
+  getCurrentWorkflowState: () => {
+    nodes: DataFlowNode[];
+    connections: DataFlowConnection[];
+  };
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -44,7 +48,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? [...state.messages, message]
           : state.messages;
 
-      // Update workflow state if message contains nodes/connections
+      // ALWAYS update workflow state if message contains nodes/connections
+      // This ensures we maintain the complete state from the server
       const newWorkflow =
         message.nodes && message.connections
           ? { nodes: message.nodes, connections: message.connections }
@@ -95,4 +100,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         currentThought: null, // Clear thought when user sends a message
       };
     }),
+
+  getCurrentWorkflowState: () => get().currentWorkflow,
 }));
