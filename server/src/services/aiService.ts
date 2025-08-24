@@ -258,18 +258,25 @@ CRITICAL WORKFLOW REQUIREMENTS:
 - ALWAYS include ALL 3 nodes in EVERY response, even if not being configured
 - NEVER omit any of the 3 nodes from the response
 - Each node must have unique IDs: "source-node", "transform-node", "destination-node"
-- CRITICAL: When updating nodes, only provide the fields that are changing or being added
-- CRITICAL: Do NOT recreate nodes from scratch - only update the specific fields that need to change
-- CRITICAL: Preserve existing node configuration and only add/update new information
-- CRITICAL: When user provides information, UPDATE the corresponding node's config and status
-- CRITICAL: If user provides store_url, update source-node config and change status to "partial"
-- CRITICAL: If user provides api_key, update source-node config and change status to "complete"
-- CRITICAL: Always check what information the user provided and update nodes accordingly
-- CRITICAL: NEVER validate user input - accept whatever they provide as correct
-- CRITICAL: Do NOT ask for corrections or better formats
-- CRITICAL: Assume all user input is valid and proceed with configuration
 
-RESPONSE FORMAT - COPY THIS EXACTLY:
+CRITICAL UPDATE RULES:
+- You will receive the CURRENT WORKFLOW STATE with each message
+- ONLY update fields that are changing based on user input
+- DO NOT change any existing fields unless user provided new information
+- Preserve all existing node configuration and data
+- Only update: status, config (add new fields), data_requirements (move fields from missing to provided)
+- DO NOT recreate or restructure nodes
+
+CRITICAL VALIDATION RULES:
+- NEVER validate user input - accept whatever they provide as correct
+- Do NOT ask for corrections or better formats
+- Assume all user input is valid and proceed with configuration
+- If user provides sample data that looks realistic, accept it immediately
+- Do NOT check if URLs, API keys, or other data actually exist in real world
+- Focus on collecting information, not validating it
+- Accept any input that could be real data and move to next question
+
+RESPONSE FORMAT - COPY THIS EXACTLY (NEVER CHANGE THE STRUCTURE):
 {
   "message": "Thank you for that information! Now I need to know: [next single question]",
   "nodes": [
@@ -277,12 +284,12 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
       "id": "source-node",
       "type": "source", 
       "name": "[Source Name]",
-      "status": "partial|complete|pending",
-      "config": { "field1": "provided_value", "field2": "provided_value" },
+      "status": "pending|partial|complete",
+      "config": {},
       "data_requirements": {
-        "required_fields": ["field1", "field2", "field3"],
-        "provided_fields": ["field1", "field2"],
-        "missing_fields": ["field3"]
+        "required_fields": [],
+        "provided_fields": [],
+        "missing_fields": []
       }
     },
     {
@@ -292,9 +299,9 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
       "status": "pending",
       "config": {},
       "data_requirements": {
-        "required_fields": ["operation_type"],
+        "required_fields": [],
         "provided_fields": [],
-        "missing_fields": ["operation_type"]
+        "missing_fields": []
       }
     },
     {
@@ -304,9 +311,9 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
       "status": "pending", 
       "config": {},
       "data_requirements": {
-        "required_fields": ["api_key", "endpoint_url"],
+        "required_fields": [],
         "provided_fields": [],
-        "missing_fields": ["api_key", "endpoint_url"]
+        "missing_fields": []
       }
     }
   ],
@@ -407,6 +414,10 @@ RULES:
 16. CRITICAL: NEVER validate user input - accept whatever they provide as correct
 17. CRITICAL: Do NOT ask for corrections or better formats
 18. CRITICAL: Assume all user input is valid and proceed with configuration
+19. CRITICAL: If user provides sample data that looks realistic, accept it immediately
+20. CRITICAL: Do NOT check if URLs, API keys, or other data actually exist in real world
+21. CRITICAL: Focus on collecting information, not validating it
+22. CRITICAL: Accept any input that could be real data and move to next question
 12. A node is "complete" when missing_fields is empty
 13. A node is "partial" when some but not all required fields are provided
 14. A node is "pending" when no required fields are provided
@@ -524,29 +535,52 @@ CRITICAL DATA_REQUIREMENTS RULES:
 - Keep required_fields constant (don't change the total requirements)
 - Example: If user provides "store_url", move it from missing_fields to provided_fields
 
-SHOPIFY TO SNOWFLAKE EXAMPLE:
-Initial source-node data_requirements:
-{
-  "required_fields": ["store_url", "api_key"],
-  "provided_fields": [],
-  "missing_fields": ["store_url", "api_key"]
-}
+WORKFLOW-SPECIFIC FIELD REQUIREMENTS:
 
-After user provides "https://mystore.myshopify.com":
-{
-  "required_fields": ["store_url", "api_key"],
-  "provided_fields": ["store_url"],
-  "missing_fields": ["api_key"]
-}
+SALESFORCE TO MAILCHIMP:
+- source-node: required_fields=["instance_url", "username", "password"]
+- destination-node: required_fields=["api_key", "datacenter"]
 
-After user provides "shpat_1234567890abcdef":
-{
-  "required_fields": ["store_url", "api_key"],
-  "provided_fields": ["store_url", "api_key"],
-  "missing_fields": []
-}
+SHOPIFY TO SNOWFLAKE:
+- source-node: required_fields=["store_url", "api_key"]
+- destination-node: required_fields=["account_url", "username", "password"]
 
-CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
+SHOPIFY TO HUBSPOT:
+- source-node: required_fields=["store_url", "api_key"]
+- destination-node: required_fields=["api_key"]
+
+SALESFORCE TO SNOWFLAKE:
+- source-node: required_fields=["instance_url", "username", "password"]
+- destination-node: required_fields=["account_url", "username", "password"]
+
+ALWAYS populate the correct required_fields based on the workflow type mentioned by the user.
+
+CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.
+
+CRITICAL JSON STRUCTURE RULES:
+- ALWAYS use the EXACT same JSON structure as shown above
+- NEVER add or remove fields from the JSON structure
+- NEVER change field names or nesting
+- ALWAYS include all 3 nodes with the same structure
+- ALWAYS include all data_requirements fields (required_fields, provided_fields, missing_fields)
+- ALWAYS include all connection fields (id, source, target, status)
+
+CURRENT STATE HANDLING:
+- You will receive "CURRENT WORKFLOW STATE" with the existing node configuration
+- Copy the existing state and make ONLY the necessary updates
+- DO NOT change any fields that are already correctly set
+- Only update: status (if user provided new info), config (add new fields), data_requirements (update provided/missing)
+- Preserve all existing configuration and structure
+
+VALIDATION EXAMPLES - WHAT TO ACCEPT:
+- User provides "jhkgvhh" → Accept it as valid Salesforce URL
+- User provides "fake-api-key-123" → Accept it as valid API key
+- User provides "test@example.com" → Accept it as valid email
+- User provides "https://fake-store.myshopify.com" → Accept it as valid URL
+- ANY input that looks like it could be real data → Accept immediately
+
+NEVER say: "That's not a valid..." or "Please provide the correct..." or "Could you please provide..."
+ALWAYS say: "Thank you! Now I need..." and proceed to next question.`;
 
 // Helper function to generate unique IDs
 const generateId = (): string => {
@@ -782,6 +816,9 @@ export const processMessage = async (
 
     sendThought?.('🤔 Let me think about your request...');
 
+    // Get current workflow state for context
+    const existingWorkflowState = getCurrentWorkflowState(conversationHistory);
+
     // Convert conversation history to AI format - limit to last 5 messages to reduce tokens
     const recentHistory = conversationHistory.slice(-5);
     const aiMessages = recentHistory.map(msg => ({
@@ -794,6 +831,14 @@ export const processMessage = async (
       role: currentMessage.role,
       content: formatMessageForAI(currentMessage),
     });
+
+    // Add current state context
+    if (existingWorkflowState.nodes && existingWorkflowState.nodes.length > 0) {
+      aiMessages.push({
+        role: 'user' as const,
+        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}\n\nUpdate this state based on the user's latest input.`,
+      });
+    }
 
     // Add system prompt as first message
     const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
@@ -959,37 +1004,10 @@ export const processMessage = async (
     console.log('  - Has connections:', !!parsed.connections);
     console.log('  - Nodes count:', parsed.nodes?.length || 0);
 
-    // Get current workflow state from conversation history
-    const currentState = getCurrentWorkflowState(conversationHistory);
-    console.log(
-      '🔍 Current workflow state found:',
-      currentState.nodes ? `${currentState.nodes.length} nodes` : 'no nodes'
-    );
-
-    // Merge new nodes with existing nodes to maintain persistence
+    // Since we're sending current state to AI, we can trust its response
     if (parsed.nodes && Array.isArray(parsed.nodes)) {
-      if (currentState.nodes && currentState.nodes.length > 0) {
-        // Merge with existing nodes to maintain configuration
-        console.log('🔄 Merging new nodes with existing nodes...');
-        console.log(
-          '📋 Existing nodes:',
-          currentState.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
-        );
-        console.log(
-          '📋 New nodes from AI:',
-          parsed.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
-        );
-
-        parsed.nodes = mergeNodesData(currentState.nodes, parsed.nodes);
-        console.log(
-          '🔄 Merged new nodes with existing nodes to maintain persistence'
-        );
-      } else {
-        // First time creating nodes, ensure all 3 are present
-        parsed.nodes = ensureAllNodesPresent(parsed.nodes);
-        console.log('🆕 Created initial nodes structure');
-      }
-
+      // Ensure all 3 nodes are present
+      parsed.nodes = ensureAllNodesPresent(parsed.nodes);
       console.log(
         '✅ Final nodes structure:',
         parsed.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
@@ -999,7 +1017,10 @@ export const processMessage = async (
     sendThought?.('✨ Perfect! I have what you need.');
 
     // Check if workflow state has changed
-    const hasStateChange = hasWorkflowStateChanged(currentState, parsed);
+    const hasStateChange = hasWorkflowStateChanged(
+      existingWorkflowState,
+      parsed
+    );
 
     // Convert AI response back to our message format
     const response: Message = {
