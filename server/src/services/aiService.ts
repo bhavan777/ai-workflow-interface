@@ -1012,6 +1012,12 @@ export const processMessage = async (
     const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
     const allMessages = [systemMessage, ...aiMessages];
 
+    console.log(
+      '🤖 System prompt being sent (first 1000 chars):',
+      SYSTEM_PROMPT.substring(0, 1000)
+    );
+    console.log('📝 Total messages being sent:', allMessages.length);
+
     console.log('📤 Sending to Groq Cloud...');
     sendThought?.('💭 Figuring out the best way to help you...');
 
