@@ -125,16 +125,16 @@ export class GroqCloudClient {
   ): Promise<string> {
     const {
       maxTokens = 4000, // Restored for Dev Tier with higher limits
-      temperature = 0.7,
+      temperature = 0.1, // Lower temperature for more consistent JSON generation
       speed = 'balanced',
       cost = 'medium',
     } = options;
 
-    // Define available models in order of preference - prioritize cheaper/faster models
+    // Define available models in order of preference - prioritize quality for JSON generation
     const availableModels = [
-      'llama3-8b-8192', // Fast, good for simple tasks, cheaper
-      'gemma2-9b-it', // Alternative model for fallback
-      'llama3-70b-8192', // High quality, use only if needed
+      'llama3-70b-8192', // High quality, best for JSON generation
+      'mixtral-8x7b-32768', // Alternative high-quality model
+      'llama3-8b-8192', // Fallback to faster model
     ];
 
     let lastError: Error | null = null;
