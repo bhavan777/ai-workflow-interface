@@ -133,3 +133,40 @@
 .dark .react-flow__background-pattern {
   @apply opacity-15;
 }
+
+/* Markdown styling for chat messages */
+.prose {
+  @apply text-inherit;
+}
+
+.prose p {
+  @apply text-inherit mb-2 last:mb-0;
+}
+
+.prose strong {
+  @apply font-semibold text-inherit;
+}
+
+.prose code {
+  @apply bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-xs font-mono;
+}
+
+.prose pre {
+  @apply bg-black/10 dark:bg-white/10 p-2 rounded text-xs font-mono whitespace-pre-wrap;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-opacity-20 pl-3 italic text-inherit;
+}
+
+.prose ul {
+  @apply list-disc list-inside space-y-1;
+}
+
+.prose ol {
+  @apply list-decimal list-inside space-y-1;
+}
+
+.prose li {
+  @apply text-inherit;
+}

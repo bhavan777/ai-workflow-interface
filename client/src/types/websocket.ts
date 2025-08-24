@@ -5,6 +5,7 @@ export interface Message {
   type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
   content: string; // Main message content (or thought content)
   timestamp: string; // ISO timestamp
+  message_type?: 'text' | 'markdown'; // Type of message content
 
   // For assistant MESSAGE responses - only include if workflow state changed
   nodes?: DataFlowNode[];

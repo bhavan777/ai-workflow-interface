@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import type { Message as MessageType } from '@/types';
 import { AlertCircle, Brain, RotateCcw, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface MessageProps {
   message: MessageType;
@@ -67,7 +68,13 @@ export default function Message({
               : 'rounded-r-lg rounded-bl-lg' // Sharp edge on left bottom for AI
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          {message.message_type === 'markdown' ? (
+            <div className="text-sm prose prose-sm max-w-none">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          )}
 
           {/* Retry button for error messages - only show on last error message */}
           {message.type === 'ERROR' && onRetry && isLastMessage && (
