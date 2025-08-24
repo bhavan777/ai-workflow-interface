@@ -31,13 +31,17 @@ export const useWorkflowWebSocket = ({
       const wsUrl = host.includes('railway.app') 
         ? `${protocol}//${host}`
         : `${protocol}//${host}:${port}`;
+      
+      console.log('🔌 Connecting to WebSocket:', wsUrl);
 
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
-          console.log('🔌 WebSocket connected');
+          const connectionTime = new Date().toISOString();
+          console.log('🔌 WebSocket connected at:', connectionTime);
+          console.log('🔌 WebSocket URL:', wsUrl);
           setIsConnected(true);
           setIsConnecting(false);
           resolve();
