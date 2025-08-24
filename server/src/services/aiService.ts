@@ -313,7 +313,7 @@ RULES:
 2. ALWAYS ask only ONE question at a time
 3. Start with source configuration, then transform, then destination
 4. Update node status: "pending" → "partial" → "complete" based on provided info
-5. Update node config with each piece of information provided
+5. ALWAYS update node config with each piece of information provided
 6. Thank user for each piece of information provided
 7. Ask the next single question needed
 8. Set node status to "complete" when all required fields for that node are provided
@@ -327,6 +327,7 @@ RULES:
 16. Be flexible with input formats - accept variations and common formats
 17. DYNAMICALLY determine source and destination based on user's request
 18. Ask relevant questions for the specific source/destination combination
+19. ALWAYS include the current node configuration in your response
 
 VALIDATION RULES:
 - Only validate when absolutely necessary (URLs, email formats, etc.)
@@ -371,9 +372,16 @@ COMMON SOURCE/DESTINATION CONFIGURATIONS:
 - URL format: https://hooks.zapier.com/...
 
 CONVERSATION FLOW EXAMPLES:
+
+**Salesforce to Mailchimp Example:**
 - User: "I want to connect Salesforce to Mailchimp"
 - Assistant: {"message": "Great! Let's set up your Salesforce to Mailchimp pipeline. What is your Salesforce instance URL?", "nodes": [{"id": "source-node", "type": "source", "name": "Salesforce Source", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
+- User: "https://mydomain.my.salesforce.com"
+- Assistant: {"message": "Thank you! Now I need your Salesforce username.", "nodes": [{"id": "source-node", "type": "source", "name": "Salesforce Source", "status": "partial", "config": {"instance_url": "https://mydomain.my.salesforce.com"}}], "connections": [...], "workflow_complete": false}
+- User: "myuser@company.com"
+- Assistant: {"message": "Thank you! Now I need your Salesforce password or access token.", "nodes": [{"id": "source-node", "type": "source", "name": "Salesforce Source", "status": "partial", "config": {"instance_url": "https://mydomain.my.salesforce.com", "username": "myuser@company.com"}}], "connections": [...], "workflow_complete": false}
 
+**Shopify to HubSpot Example:**
 - User: "I want to connect Shopify to HubSpot"
 - Assistant: {"message": "Great! Let's set up your Shopify to HubSpot pipeline. What is your Shopify store URL?", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
 
@@ -382,7 +390,7 @@ VALIDATION EXAMPLES:
 - If user provides empty string: "I need your [field name]. Please provide a value."
 - If user provides invalid option: "Please choose from: Filter, Aggregate, Join, or Map"
 
-IMPORTANT: Always check the conversation history to see what information has already been provided. Do not ask for the same information twice.
+IMPORTANT: Always check the conversation history to see what information has already been provided. Do not ask for the same information twice. ALWAYS update the node configuration with each piece of information provided.
 
 CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
 
@@ -442,7 +450,8 @@ const hasWorkflowStateChanged = (
 export const processMessage = async (
   conversationHistory: Message[],
   currentMessage: Message,
-  sendThought?: (thought: string) => void
+  sendThought?: (thought: string) => void,
+  jsonRetryCount: number = 0
 ): Promise<Message> => {
   try {
     console.log('🔄 Starting processMessage with Groq Cloud...');
@@ -459,6 +468,14 @@ export const processMessage = async (
         `  ${index + 1}. [${msg.role}] ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`
       );
     });
+
+    // Log current workflow state
+    const currentWorkflowState = getCurrentWorkflowState(conversationHistory);
+    console.log(
+      '🔧 Current workflow state:',
+      JSON.stringify(currentWorkflowState, null, 2)
+    );
+    console.log('📝 Current message content:', currentMessage.content);
 
     // Check if API key is available
     if (!process.env.GROQ_API_KEY) {
@@ -606,6 +623,7 @@ export const processMessage = async (
         ); // Add quotes to last unquoted values
 
       console.log('🔧 Attempting to repair JSON:', repairedJson);
+      sendThought?.('🤔 Let me think about that for a moment...');
 
       try {
         parsed = JSON.parse(repairedJson);
@@ -614,124 +632,64 @@ export const processMessage = async (
       } catch (repairError) {
         console.error('❌ Failed to repair JSON:', repairError);
 
-        // Get current workflow state to provide context-aware fallback
-        const currentState = getCurrentWorkflowState(conversationHistory);
-
-        // Check what information was provided in the current message
-        const currentMessageContent = currentMessage.content.toLowerCase();
-        const hasUrl =
-          currentMessageContent.includes('http') ||
-          currentMessageContent.includes('://') ||
-          currentMessageContent.includes('.com') ||
-          currentMessageContent.includes('.org') ||
-          currentMessageContent.includes('.net');
-        const hasApiKey = currentMessageContent.length > 5 && !hasUrl; // Assume any substantial non-URL text is an API key
-
-        // Determine what to ask for next based on current state and current message
-        let fallbackMessage =
-          "I understand. Let's continue with the configuration.";
-
-        if (!currentState.nodes || currentState.nodes.length === 0) {
-          // No workflow state yet, ask for source URL
-          fallbackMessage += ' What is your source system URL?';
-        } else {
-          const sourceNode = currentState.nodes.find(n => n.type === 'source');
-          const transformNode = currentState.nodes.find(
-            n => n.type === 'transform'
-          );
-          const destinationNode = currentState.nodes.find(
-            n => n.type === 'destination'
+        // Check if we've exceeded the retry limit (max 3 attempts)
+        if (jsonRetryCount >= 3) {
+          console.error(
+            '❌ Max JSON retry attempts reached, falling back gracefully'
           );
 
-          if (sourceNode && sourceNode.status !== 'complete') {
-            // Determine what source field is missing based on source name
-            const sourceName = sourceNode.name.toLowerCase();
+          // Send a final thought message to inform the user
+          sendThought?.(
+            "😔 I apologize, but I'm having trouble with this request. Let me try a different approach..."
+          );
 
-            if (sourceName.includes('salesforce')) {
-              if (!sourceNode.config?.instance_url && !hasUrl) {
-                fallbackMessage +=
-                  ' What is your Salesforce instance URL? (e.g., https://yourdomain.my.salesforce.com)';
-              } else if (!sourceNode.config?.username && !hasApiKey) {
-                fallbackMessage += ' What is your Salesforce username?';
-              } else if (!sourceNode.config?.password && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your Salesforce password or access token?';
-              }
-            } else if (sourceName.includes('shopify')) {
-              if (!sourceNode.config?.store_url && !hasUrl) {
-                fallbackMessage +=
-                  ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
-              } else if (!sourceNode.config?.api_key && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your Shopify API key? (any non-empty string is fine)';
-              }
-            } else if (sourceName.includes('mailchimp')) {
-              if (!sourceNode.config?.api_key && !hasApiKey) {
-                fallbackMessage += ' What is your Mailchimp API key?';
-              } else if (!sourceNode.config?.datacenter && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your Mailchimp datacenter? (e.g., us1, us2, eu1)';
-              }
-            } else {
-              // Generic source
-              if (!sourceNode.config?.url && !hasUrl) {
-                fallbackMessage += ' What is your source system URL?';
-              } else if (!sourceNode.config?.api_key && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your API key? (any non-empty string is fine)';
-              }
-            }
-          } else if (transformNode && transformNode.status !== 'complete') {
-            fallbackMessage +=
-              ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
-          } else if (destinationNode && destinationNode.status !== 'complete') {
-            // Determine what destination field is missing based on destination name
-            const destName = destinationNode.name.toLowerCase();
-
-            if (destName.includes('snowflake')) {
-              if (!destinationNode.config?.account_url && !hasUrl) {
-                fallbackMessage +=
-                  ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
-              } else if (!destinationNode.config?.username && !hasApiKey) {
-                fallbackMessage += ' What is your Snowflake username?';
-              } else if (!destinationNode.config?.password && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your Snowflake password or private key?';
-              }
-            } else if (destName.includes('mailchimp')) {
-              if (!destinationNode.config?.api_key && !hasApiKey) {
-                fallbackMessage += ' What is your Mailchimp API key?';
-              } else if (!destinationNode.config?.datacenter && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your Mailchimp datacenter? (e.g., us1, us2, eu1)';
-              }
-            } else if (destName.includes('hubspot')) {
-              if (!destinationNode.config?.api_key && !hasApiKey) {
-                fallbackMessage += ' What is your HubSpot API key?';
-              }
-            } else {
-              // Generic destination
-              if (!destinationNode.config?.url && !hasUrl) {
-                fallbackMessage += ' What is your destination system URL?';
-              } else if (!destinationNode.config?.api_key && !hasApiKey) {
-                fallbackMessage +=
-                  ' What is your API key? (any non-empty string is fine)';
-              }
-            }
-          } else {
-            fallbackMessage += ' What would you like to configure next?';
-          }
+          // Return a graceful error response
+          return {
+            id: generateId(),
+            response_to: currentMessage.id,
+            role: 'assistant',
+            type: 'ERROR',
+            content:
+              "I'm having trouble processing your request due to a technical issue. Please try again in a moment, or rephrase your request.",
+            timestamp: new Date().toISOString(),
+          };
         }
 
-        // Return a context-aware fallback response
-        return {
+        // Send the invalid JSON back to the AI to fix it
+        console.log(
+          `🔄 JSON retry attempt ${jsonRetryCount + 1}/3 - asking AI to fix invalid JSON`
+        );
+
+        // Send user-friendly thought messages based on retry attempt
+        const retryMessages = [
+          '🤔 Let me rephrase that for you...',
+          '💭 Let me think about this differently...',
+          '✨ Almost there, just one more thought...',
+        ];
+
+        const thoughtMessage =
+          retryMessages[jsonRetryCount] || '🤔 Let me think about this...';
+        sendThought?.(thoughtMessage);
+
+        // Create a message asking the AI to fix the JSON
+        const fixJsonMessage: Message = {
           id: generateId(),
-          response_to: currentMessage.id,
-          role: 'assistant',
+          role: 'user',
           type: 'MESSAGE',
-          content: fallbackMessage,
+          content: `The JSON response you provided is invalid and couldn't be parsed. Please fix the JSON syntax and respond with valid JSON. Here's what you sent: \`\`\`json\n${jsonContent}\n\`\`\`\n\nPlease provide a corrected JSON response.`,
           timestamp: new Date().toISOString(),
         };
+
+        // Add the fix request to conversation history
+        const updatedHistory = [...conversationHistory, fixJsonMessage];
+
+        // Recursively call processMessage with the fix request
+        return await processMessage(
+          updatedHistory,
+          fixJsonMessage,
+          sendThought,
+          jsonRetryCount + 1
+        );
       }
     }
 
