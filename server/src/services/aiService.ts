@@ -342,11 +342,13 @@ SEQUENTIAL DATA COLLECTION RULES:
 - Do not skip ahead or ask for multiple fields simultaneously
 
 NODE TRANSITION MESSAGES:
+- When starting a workflow (very first interaction): "Welcome! I'll help you create a data pipeline from [source] to [destination]. I'll collect configuration information step by step, starting with your [source] details. Let's begin with [first field]. For example: [sample example]"
 - When starting a new node (first field of that node): "Perfect! Now I'll collect information related to [node type] configuration. Let's start with [first field]. For example: [sample example]"
 - When completing a node (last field of that node): "Excellent! [Node type] configuration is now complete. Let's move on to [next node type] configuration."
 - Be graceful and informative about transitions between nodes
 - Acknowledge completion of each node before moving to the next
 - ALWAYS provide a sample example when asking for data input from the user
+- Provide a warm, welcoming greeting when starting a new workflow
 
 SERVICE-SPECIFIC FIELD DETERMINATION:
 - For Shopify Source: use ["store_url", "api_key", "api_secret"]
@@ -667,6 +669,17 @@ const isStartingNewNode = (
   return node.data_requirements.provided_fields.length === 0;
 };
 
+// Helper function to check if this is the very first interaction (starting workflow)
+const isStartingWorkflow = (nodes: DataFlowNode[]): boolean => {
+  // Check if all nodes are in their initial state (no fields provided)
+  return nodes.every(
+    node =>
+      node.data_requirements?.provided_fields.length === 0 &&
+      node.data_requirements?.missing_fields.length ===
+        node.data_requirements?.required_fields.length
+  );
+};
+
 // Helper function to check if we're completing a node (last field of that node)
 const isCompletingNode = (
   nodes: DataFlowNode[],
@@ -890,7 +903,10 @@ export const processMessage = async (
     // Determine the next data point that should be requested
     const nextDataPoint = getNextDataPoint(existingWorkflowState.nodes || []);
 
-    // Check for node transitions
+    // Check for workflow and node transitions
+    const isStartingWorkflowNow = isStartingWorkflow(
+      existingWorkflowState.nodes || []
+    );
     const isStartingNode = isStartingNewNode(
       existingWorkflowState.nodes || [],
       nextDataPoint
@@ -905,7 +921,9 @@ export const processMessage = async (
       const nodeType = getCurrentNodeType(nextDataPoint.nodeId);
       const fieldExample = getFieldExample(nextDataPoint.fieldName, nodeType);
 
-      if (isStartingNode) {
+      if (isStartingWorkflowNow) {
+        transitionInfo = `\n\nWORKFLOW GREETING: Welcome! I'll help you create a data pipeline from ${nodeType} to destination. I'll collect configuration information step by step, starting with your ${nodeType} details. Let's begin with ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+      } else if (isStartingNode) {
         transitionInfo = `\n\nNODE TRANSITION: Starting ${nodeType} configuration. Request: ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
       } else if (isCompletingCurrentNode) {
         const nextNodeType = getNextNodeType(nextDataPoint.nodeId);
@@ -1187,9 +1205,11 @@ export const clearAllConversations = (): void => {
 export {
   createInitialWorkflowState,
   ensureAllNodesPresent,
+  getCurrentNodeType,
+  getFieldExample,
   getNextDataPoint,
   isNodeComplete,
+  isStartingWorkflow,
   isWorkflowComplete,
   mergeNodesData,
-  getFieldExample,
 };
