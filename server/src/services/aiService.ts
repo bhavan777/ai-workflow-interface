@@ -926,17 +926,17 @@ export const processMessage = async (
       nextDataPoint
     );
 
-    // Debug logging for workflow greeting
-    console.log('🔍 Workflow greeting debug:');
-    console.log('  - Is starting workflow:', isStartingWorkflowNow);
-    console.log('  - Is starting node:', isStartingNode);
-    console.log('  - Is completing node:', isCompletingCurrentNode);
-    console.log(
-      '  - Next data point:',
-      nextDataPoint
-        ? `${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
-        : 'None'
-    );
+    // Debug logging for workflow greeting (commented out to reduce log rate)
+    // console.log('🔍 Workflow greeting debug:');
+    // console.log('  - Is starting workflow:', isStartingWorkflowNow);
+    // console.log('  - Is starting node:', isStartingNode);
+    // console.log('  - Is completing node:', isCompletingCurrentNode);
+    // console.log(
+    //   '  - Next data point:',
+    //   nextDataPoint
+    //     ? `${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
+    //     : 'None'
+    // );
 
     let transitionInfo = '';
     if (nextDataPoint) {
@@ -968,12 +968,13 @@ export const processMessage = async (
     const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
     const allMessages = [systemMessage, ...aiMessages];
 
-    console.log(
-      '🤖 System prompt being sent (first 1000 chars):',
-      SYSTEM_PROMPT.substring(0, 1000)
-    );
-    console.log('🔄 Force rebuild timestamp:', new Date().toISOString());
-    console.log('📝 Total messages being sent:', allMessages.length);
+    // Reduced logging to prevent rate limiting
+    // console.log(
+    //   '🤖 System prompt being sent (first 1000 chars):',
+    //   SYSTEM_PROMPT.substring(0, 1000)
+    // );
+    // console.log('🔄 Force rebuild timestamp:', new Date().toISOString());
+    // console.log('📝 Total messages being sent:', allMessages.length);
 
     console.log('📤 Sending to Groq Cloud...');
     sendThought?.('💭 Building your workflow structure...');
@@ -994,9 +995,10 @@ export const processMessage = async (
       throw new Error('No response from Groq Cloud');
     }
 
-    console.log('📄 Raw Groq Cloud content:', content);
-    console.log('📄 Content length:', content.length);
-    console.log('📄 First 200 chars:', content.substring(0, 200));
+    // Reduced logging to prevent rate limiting
+    // console.log('📄 Raw Groq Cloud content:', content);
+    // console.log('📄 Content length:', content.length);
+    // console.log('📄 First 200 chars:', content.substring(0, 200));
 
     sendThought?.('🔍 Validating your workflow...');
 
@@ -1016,7 +1018,7 @@ export const processMessage = async (
       }
     }
 
-    console.log('🔍 Attempting to parse JSON:', jsonContent);
+    // console.log('🔍 Attempting to parse JSON:', jsonContent);
 
     // Try to parse the JSON
     let parsed;
