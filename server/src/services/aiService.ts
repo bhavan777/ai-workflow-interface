@@ -322,6 +322,7 @@ CRITICAL RULES:
 - CRITICAL: The initial greeting should include both welcome message and first question with clear visual separation using markdown
 - CRITICAL: When user provides a field value, immediately update the workflow state by moving the field from missing_fields to provided_fields
 - CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node
+- CRITICAL: Every data request MUST include an example in the format "> **Example:** \`[sample example]\`"
 
 SEQUENTIAL DATA COLLECTION RULES:
 - Start with source-node and collect all 3 data points before moving to transform-node
@@ -338,7 +339,8 @@ NODE TRANSITION MESSAGES:
 - When completing a node (last field of that node): "**Excellent!** 🎯 **\`[node type]\`** configuration is now complete.\\n\\nLet's move on to **\`[next node type]\`** configuration."
 - Be graceful and informative about transitions between nodes
 - Acknowledge completion of each node before moving to the next
-- ALWAYS provide a sample example when asking for data input from the user (except for status updates/greetings)
+- CRITICAL: ALWAYS provide a sample example when asking for data input from the user (except for status updates/greetings)
+- CRITICAL: Every question asking for user input MUST include "> **Example:** \`[sample example]\`" format
 - Use markdown formatting for beautiful, structured messages
 - CRITICAL: Status updates and greetings are informational only - do not ask for any data in these messages
 
@@ -370,9 +372,10 @@ STATE MANAGEMENT:
 - Maintain the same node IDs, connection IDs, and overall structure
 - Preserve existing data_requirements.provided_fields and update missing_fields accordingly
 - Keep the same node names unless the user specifies a different service
-- CRITICAL: When user provides a field value, validate it and update the workflow state immediately
+- CRITICAL: When user provides a field value, assume it is correct and update the workflow state immediately
 - CRITICAL: Always include the complete updated workflow state in your response (nodes and connections)
 - CRITICAL: You MUST include both nodes and connections in EVERY response, even if they haven't changed
+- CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`"
 
 NODE PROGRESSION LOGIC:
 - source-node: pending → partial (1-2 fields) → complete (3 fields) → move to transform-node
@@ -950,9 +953,9 @@ export const processMessage = async (
         transitionInfo = `\n\nNODE TRANSITION: Provide a status update about starting ${nodeType} configuration, then immediately ask for the first field. Status: "**Perfect!** ✨ Now I'll collect information related to **\`${nodeType}\`** configuration." Then ask: "Let's start with **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`"`;
       } else if (isCompletingCurrentNode) {
         const nextNodeType = getNextNodeType(nextDataPoint.nodeId);
-        transitionInfo = `\n\nNODE TRANSITION: Completing ${nodeType} configuration with markdown formatting. Request: **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\`. After this field, move to ${nextNodeType} configuration.`;
+        transitionInfo = `\n\nNODE TRANSITION: Completing ${nodeType} configuration with markdown formatting. Request: **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`\\n\\nAfter this field, move to ${nextNodeType} configuration.`;
       } else {
-        transitionInfo = `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\``;
+        transitionInfo = `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\``;
       }
     } else {
       transitionInfo =
@@ -962,7 +965,7 @@ export const processMessage = async (
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. CRITICAL: You MUST include the complete nodes and connections in your response, even if they haven't changed. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. CRITICAL: You MUST include the complete nodes and connections in your response, even if they haven't changed. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`".${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
     });
 
     // Add system prompt as first message
