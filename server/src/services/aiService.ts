@@ -265,60 +265,35 @@ MESSAGE FORMATTING: Use markdown formatting in your messages to make them beauti
 - > Blockquotes for examples and sample data
 - Bullet points for lists
 - Proper spacing and line breaks for readability
+- IMPORTANT: Use \\n for line breaks in JSON message field, not actual newlines
 
-SERVICE VALIDATION: You can work with any valid data source/destination services based on your knowledge. Determine if services mentioned are valid for data transformation.
+RESPONSE FORMAT - Follow this TypeScript interface exactly:
 
-SERVICE EXAMPLES (but not limited to):
-- Sources: Shopify, Salesforce, MySQL, PostgreSQL, MongoDB, API endpoints, CSV files, etc.
-- Destinations: Snowflake, BigQuery, AWS S3, Google Sheets, email, webhooks, etc.
-- Transform: Always needs operation_type, parameters, output_format
+interface AIResponse {
+  message: string; // Proactive message asking for next piece of information needed
+  nodes: DataFlowNode[];
+  connections: DataFlowConnection[];
+  workflow_complete: boolean;
+}
 
-RESPONSE FORMAT - COPY THIS EXACTLY:
-{
-  "message": "[Proactive message directly asking for the next piece of information needed]",
-  "nodes": [
-    {
-      "id": "source-node",
-      "type": "source",
-      "name": "[Service Name] Source", 
-      "status": "pending|partial|complete",
-      "config": {},
-      "data_requirements": {
-        "required_fields": ["field1", "field2", "field3"],
-        "provided_fields": [],
-        "missing_fields": ["field1", "field2", "field3"]
-      }
-    },
-    {
-      "id": "transform-node",
-      "type": "transform", 
-      "name": "Data Transform",
-      "status": "pending|partial|complete",
-      "config": {},
-      "data_requirements": {
-        "required_fields": ["operation_type", "parameters", "output_format"],
-        "provided_fields": [],
-        "missing_fields": ["operation_type", "parameters", "output_format"]
-      }
-    },
-    {
-      "id": "destination-node",
-      "type": "destination",
-      "name": "[Service Name] Destination",
-      "status": "pending|partial|complete", 
-      "config": {},
-      "data_requirements": {
-        "required_fields": ["field1", "field2", "field3"],
-        "provided_fields": [],
-        "missing_fields": ["field1", "field2", "field3"]
-      }
-    }
-  ],
-  "connections": [
-    {"id": "conn1", "source": "source-node", "target": "transform-node", "status": "pending"},
-    {"id": "conn2", "source": "transform-node", "target": "destination-node", "status": "pending"}
-  ],
-  "workflow_complete": false
+interface DataFlowNode {
+  id: string; // Must be one of: "source-node", "transform-node", "destination-node"
+  type: "source" | "transform" | "destination";
+  name: string; // Service name + " Source/Transform/Destination"
+  status: "pending" | "partial" | "complete";
+  config: Record<string, any>; // Always empty object {}
+  data_requirements: {
+    required_fields: string[]; // Array of field names needed for this node
+    provided_fields: string[]; // Array of field names already provided
+    missing_fields: string[]; // Array of field names still needed
+  };
+}
+
+interface DataFlowConnection {
+  id: string; // Must be one of: "conn1", "conn2"
+  source: string; // Source node ID
+  target: string; // Target node ID
+  status: "pending" | "complete" | "error";
 }
 
 CRITICAL RULES:
@@ -351,13 +326,12 @@ SEQUENTIAL DATA COLLECTION RULES:
 - Do not skip ahead or ask for multiple fields simultaneously
 
 NODE TRANSITION MESSAGES:
-- CRITICAL: When starting a workflow (very first interaction), you MUST start with: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`[source]\`** to **\`[destination]\`**. I'll collect configuration information step by step, starting with your **\`[source]\`** details.\n\nLet's begin with **\`[first field]\`**:\n> **Example:** \`[sample example]\`"
-- When starting a new node (first field of that node): "**Perfect!** ✨ Now I'll collect information related to **\`[node type]\`** configuration.\n\nLet's start with **\`[first field]\`**:\n> **Example:** \`[sample example]\`"
-- When completing a node (last field of that node): "**Excellent!** 🎯 **\`[node type]\`** configuration is now complete.\n\nLet's move on to **\`[next node type]\`** configuration."
+- CRITICAL: When starting a workflow (very first interaction), you MUST start with: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`[source]\`** to **\`[destination]\`**. I'll collect configuration information step by step, starting with your **\`[source]\`** details.\\n\\nLet's begin with **\`[first field]\`**:\\n> **Example:** \`[sample example]\`"
+- When starting a new node (first field of that node): "**Perfect!** ✨ Now I'll collect information related to **\`[node type]\`** configuration.\\n\\nLet's start with **\`[first field]\`**:\\n> **Example:** \`[sample example]\`"
+- When completing a node (last field of that node): "**Excellent!** 🎯 **\`[node type]\`** configuration is now complete.\\n\\nLet's move on to **\`[next node type]\`** configuration."
 - Be graceful and informative about transitions between nodes
 - Acknowledge completion of each node before moving to the next
 - ALWAYS provide a sample example when asking for data input from the user
-- CRITICAL: ALWAYS provide a warm, welcoming greeting when starting a new workflow - this is mandatory
 - Use markdown formatting for beautiful, structured messages
 
 SERVICE-SPECIFIC FIELD DETERMINATION:
@@ -944,7 +918,7 @@ export const processMessage = async (
       const fieldExample = getFieldExample(nextDataPoint.fieldName, nodeType);
 
       if (isStartingWorkflowNow) {
-        transitionInfo = `\n\nWORKFLOW GREETING: CRITICAL - You MUST start your response with a welcoming greeting using markdown formatting. Say: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`${nodeType}\`** to **\`destination\`**. I'll collect configuration information step by step, starting with your **\`${nodeType}\`** details.\n\nLet's begin with **\`${nextDataPoint.fieldName}\`**:\n> **Example:** \`${fieldExample}\`"`;
+        transitionInfo = `\n\nWORKFLOW GREETING: CRITICAL - You MUST start your response with a welcoming greeting using markdown formatting. Say: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`${nodeType}\`** to **\`destination\`**. I'll collect configuration information step by step, starting with your **\`${nodeType}\`** details.\\n\\nLet's begin with **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`"`;
       } else if (isStartingNode) {
         transitionInfo = `\n\nNODE TRANSITION: Starting ${nodeType} configuration with markdown formatting. Request: **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\``;
       } else if (isCompletingCurrentNode) {
@@ -1016,6 +990,25 @@ export const processMessage = async (
       if (jsonMatch) {
         jsonContent = jsonMatch[1].trim();
       }
+    }
+
+    // Clean up the JSON content - handle newlines in message field properly
+    // First, try to find the JSON structure and handle newlines in string values
+    try {
+      // Look for the message field and properly escape newlines
+      jsonContent = jsonContent.replace(
+        /"message":\s*"([^"]*(?:\\.[^"]*)*)"/g,
+        (match, messageContent) => {
+          const escapedMessage = messageContent
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/"/g, '\\"');
+          return `"message": "${escapedMessage}"`;
+        }
+      );
+    } catch (error) {
+      // If regex fails, fall back to simple replacement
+      console.log('⚠️ JSON cleanup failed, using fallback method');
     }
 
     // console.log('🔍 Attempting to parse JSON:', jsonContent);
