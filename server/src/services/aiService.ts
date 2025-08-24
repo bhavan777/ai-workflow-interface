@@ -96,7 +96,7 @@ export class GroqCloudClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'mixtral-8x7b-32768',
+          model: 'llama3-8b-8192',
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 10,
         }),
@@ -132,9 +132,9 @@ export class GroqCloudClient {
 
     // Define available models in order of preference
     const availableModels = [
-      'mixtral-8x7b-32768', // Most reliable, high token limit
+      'llama3-70b-8192', // High quality, reliable for complex tasks
       'llama3-8b-8192', // Fast, good for simple tasks
-      'llama3-70b-8192', // High quality, but may hit rate limits
+      'gemma2-9b-it', // Alternative model for fallback
     ];
 
     let lastError: Error | null = null;
