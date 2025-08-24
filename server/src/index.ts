@@ -90,6 +90,7 @@ app.get('/health', async (req, res) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      deployment_time: process.env.DEPLOYMENT_TIME || new Date().toISOString(),
     };
 
     // Check Groq API health if API key is available
@@ -187,8 +188,11 @@ process.on('SIGINT', () => {
 });
 
 server.listen(PORT, async () => {
+  const deploymentTime = new Date().toISOString();
+  process.env.DEPLOYMENT_TIME = deploymentTime;
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 WebSocket server ready for connections`);
+  console.log(`🕐 Deployment timestamp: ${deploymentTime}`);
 
   // Validate Groq API key on startup
   if (process.env.GROQ_API_KEY) {
