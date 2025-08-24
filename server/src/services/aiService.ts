@@ -249,12 +249,18 @@ export interface DataFlowConnection {
   status: 'pending' | 'complete' | 'error';
 }
 
-const SYSTEM_PROMPT = `You are a data integration expert. Respond with ONLY valid JSON.
+const SYSTEM_PROMPT = `You are a data integration expert helping users build data pipelines through conversation.
 
-CRITICAL: Create exactly 3 nodes: source-node, transform-node, destination-node
-CRITICAL: Include ALL 3 nodes in EVERY response
-CRITICAL: Only update fields that are changing - preserve existing config
-CRITICAL: Do NOT recreate nodes from scratch
+CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or after the JSON. No explanations. Just the JSON.
+
+CRITICAL WORKFLOW REQUIREMENTS:
+- ALWAYS create exactly 3 nodes: 1 source, 1 transform, 1 destination
+- ALWAYS include ALL 3 nodes in EVERY response, even if not being configured
+- NEVER omit any of the 3 nodes from the response
+- Each node must have unique IDs: "source-node", "transform-node", "destination-node"
+- CRITICAL: When updating nodes, only provide the fields that are changing or being added
+- CRITICAL: Do NOT recreate nodes from scratch - only update the specific fields that need to change
+- CRITICAL: Preserve existing node configuration and only add/update new information
 
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
@@ -760,6 +766,8 @@ export const processMessage = async (
     }
 
     console.log('📄 Raw Groq Cloud content:', content);
+    console.log('📄 Content length:', content.length);
+    console.log('📄 First 200 chars:', content.substring(0, 200));
 
     // Try to extract JSON from the response
     let jsonContent = content;
@@ -891,6 +899,12 @@ export const processMessage = async (
     if (!parsed.message) {
       throw new Error('Invalid response structure - missing message');
     }
+
+    console.log('🔍 Parsed response structure:');
+    console.log('  - Has message:', !!parsed.message);
+    console.log('  - Has nodes:', !!parsed.nodes);
+    console.log('  - Has connections:', !!parsed.connections);
+    console.log('  - Nodes count:', parsed.nodes?.length || 0);
 
     // Get current workflow state from conversation history
     const currentState = getCurrentWorkflowState(conversationHistory);
