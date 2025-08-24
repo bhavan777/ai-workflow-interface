@@ -27,13 +27,21 @@ export interface Message {
   type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
   content: string; // Main message content (or thought content)
   timestamp: string; // ISO timestamp
+  message_type?: 'text' | 'markdown'; // Type of message content
 
   // For assistant MESSAGE responses - only include if workflow state changed
   nodes?: DataFlowNode[];
   connections?: DataFlowConnection[];
+  workflow_complete?: boolean; // Indicates if the workflow configuration is complete
 
   // For status updates
   status?: 'processing' | 'complete' | 'error';
+
+  // For multi-message responses
+  multi_message?: {
+    remaining_messages: string[];
+    delay_ms: number;
+  };
 }
 
 export interface DataFlowNode {
@@ -179,8 +187,47 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     // Add final delay before sending result
     await delay(800);
 
-    // Always send the complete response with workflow state
-    ws.send(JSON.stringify(response));
+    // Handle multi-message responses
+    if (
+      response.multi_message &&
+      response.multi_message.remaining_messages.length > 0
+    ) {
+      console.log(
+        '📨 Multi-message response detected, sending remaining messages...'
+      );
+
+      // Send the first message immediately
+      ws.send(JSON.stringify(response));
+
+      // Send remaining messages with delay
+      for (const remainingMessage of response.multi_message
+        .remaining_messages) {
+        await delay(response.multi_message.delay_ms);
+
+        const followUpMessage: Message = {
+          id: generateId(),
+          response_to: response.id,
+          role: 'assistant',
+          type: 'MESSAGE',
+          content: remainingMessage,
+          message_type: 'markdown',
+          timestamp: new Date().toISOString(),
+          // Include the same workflow state
+          nodes: response.nodes,
+          connections: response.connections,
+          workflow_complete: response.workflow_complete,
+        };
+
+        ws.send(JSON.stringify(followUpMessage));
+        console.log(
+          '📤 Sent follow-up message:',
+          remainingMessage.substring(0, 50) + '...'
+        );
+      }
+    } else {
+      // Send single message response
+      ws.send(JSON.stringify(response));
+    }
 
     // Log the workflow state being sent
     if (response.nodes && response.connections) {
