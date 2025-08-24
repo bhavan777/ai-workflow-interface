@@ -229,9 +229,9 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
     {
       "id": "source-node",
       "type": "source", 
-      "name": "Shopify Source",
+      "name": "[Source Name]",
       "status": "partial|complete|pending",
-      "config": { "store_url": "provided_value", "api_key": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" }
     },
     {
       "id": "transform-node",
@@ -243,7 +243,7 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
     {
       "id": "destination-node",
       "type": "destination",
-      "name": "Snowflake Destination",
+      "name": "[Destination Name]",
       "status": "pending", 
       "config": {}
     }
@@ -272,9 +272,9 @@ WHEN ALL NODES ARE COMPLETE, USE THIS FORMAT:
     {
       "id": "source-node",
       "type": "source", 
-      "name": "Shopify Source",
+      "name": "[Source Name]",
       "status": "complete",
-      "config": { "store_url": "provided_value", "api_key": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" }
     },
     {
       "id": "transform-node",
@@ -286,9 +286,9 @@ WHEN ALL NODES ARE COMPLETE, USE THIS FORMAT:
     {
       "id": "destination-node",
       "type": "destination",
-      "name": "Snowflake Destination",
+      "name": "[Destination Name]",
       "status": "complete", 
-      "config": { "account_url": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" }
     }
   ],
   "connections": [
@@ -325,6 +325,8 @@ RULES:
 14. ACCEPT any user input unless it's clearly invalid (e.g., non-URL for URL fields)
 15. For validation failures, explain the issue and provide a clear example of valid input
 16. Be flexible with input formats - accept variations and common formats
+17. DYNAMICALLY determine source and destination based on user's request
+18. Ask relevant questions for the specific source/destination combination
 
 VALIDATION RULES:
 - Only validate when absolutely necessary (URLs, email formats, etc.)
@@ -334,17 +336,49 @@ VALIDATION RULES:
 - For options: Accept variations (e.g., "filter", "Filter", "FILTER" all work)
 - When validation fails, provide: "I need a valid [field type]. For example: [specific example]"
 
-CONVERSATION FLOW:
-- User starts: "I want to connect Shopify to Snowflake"
-- Assistant: {"message": "Great! Let's set up your data pipeline. What is your Shopify store URL?", "nodes": [...], "connections": [...], "workflow_complete": false}
-- User: "mystore.myshopify.com"  
-- Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...], "workflow_complete": false}
-- User: "abc123"
-- Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...], "workflow_complete": false}
-- When all complete: {"message": "🎉 Perfect! Your data pipeline configuration is complete...", "workflow_complete": true}
+COMMON SOURCE/DESTINATION CONFIGURATIONS:
+
+**Salesforce:**
+- Required fields: instance_url, username, password/access_token
+- URL format: https://yourdomain.my.salesforce.com
+
+**Shopify:**
+- Required fields: store_url, api_key
+- URL format: https://mystore.myshopify.com
+
+**Mailchimp:**
+- Required fields: api_key, datacenter
+- API key format: any non-empty string
+
+**Snowflake:**
+- Required fields: account_url, username, password/private_key
+- URL format: https://your-account.snowflakecomputing.com
+
+**Google Analytics:**
+- Required fields: property_id, service_account_key
+- Property ID format: GA4 property ID
+
+**HubSpot:**
+- Required fields: api_key
+- API key format: any non-empty string
+
+**Stripe:**
+- Required fields: api_key
+- API key format: sk_live_... or sk_test_...
+
+**Zapier:**
+- Required fields: webhook_url
+- URL format: https://hooks.zapier.com/...
+
+CONVERSATION FLOW EXAMPLES:
+- User: "I want to connect Salesforce to Mailchimp"
+- Assistant: {"message": "Great! Let's set up your Salesforce to Mailchimp pipeline. What is your Salesforce instance URL?", "nodes": [{"id": "source-node", "type": "source", "name": "Salesforce Source", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
+
+- User: "I want to connect Shopify to HubSpot"
+- Assistant: {"message": "Great! Let's set up your Shopify to HubSpot pipeline. What is your Shopify store URL?", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
 
 VALIDATION EXAMPLES:
-- If user provides "my store" for URL: "I need a valid URL. For example: https://mystore.myshopify.com"
+- If user provides "my domain" for Salesforce URL: "I need a valid URL. For example: https://yourdomain.my.salesforce.com"
 - If user provides empty string: "I need your [field name]. Please provide a value."
 - If user provides invalid option: "Please choose from: Filter, Aggregate, Join, or Map"
 
@@ -585,24 +619,21 @@ export const processMessage = async (
 
         // Check what information was provided in the current message
         const currentMessageContent = currentMessage.content.toLowerCase();
-        const hasStoreUrl =
-          currentMessageContent.includes('myshopify.com') ||
+        const hasUrl =
           currentMessageContent.includes('http') ||
-          currentMessageContent.includes('://');
-        const hasApiKey = currentMessageContent.length > 5 && !hasStoreUrl; // Assume any substantial non-URL text is an API key
+          currentMessageContent.includes('://') ||
+          currentMessageContent.includes('.com') ||
+          currentMessageContent.includes('.org') ||
+          currentMessageContent.includes('.net');
+        const hasApiKey = currentMessageContent.length > 5 && !hasUrl; // Assume any substantial non-URL text is an API key
 
         // Determine what to ask for next based on current state and current message
         let fallbackMessage =
           "I understand. Let's continue with the configuration.";
 
         if (!currentState.nodes || currentState.nodes.length === 0) {
-          if (!hasStoreUrl) {
-            fallbackMessage +=
-              ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
-          } else {
-            fallbackMessage +=
-              ' What is your Shopify API key? (any non-empty string is fine)';
-          }
+          // No workflow state yet, ask for source URL
+          fallbackMessage += ' What is your source system URL?';
         } else {
           const sourceNode = currentState.nodes.find(n => n.type === 'source');
           const transformNode = currentState.nodes.find(
@@ -613,23 +644,80 @@ export const processMessage = async (
           );
 
           if (sourceNode && sourceNode.status !== 'complete') {
-            if (!sourceNode.config?.store_url && !hasStoreUrl) {
-              fallbackMessage +=
-                ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
-            } else if (!sourceNode.config?.api_key && !hasApiKey) {
-              fallbackMessage +=
-                ' What is your Shopify API key? (any non-empty string is fine)';
+            // Determine what source field is missing based on source name
+            const sourceName = sourceNode.name.toLowerCase();
+
+            if (sourceName.includes('salesforce')) {
+              if (!sourceNode.config?.instance_url && !hasUrl) {
+                fallbackMessage +=
+                  ' What is your Salesforce instance URL? (e.g., https://yourdomain.my.salesforce.com)';
+              } else if (!sourceNode.config?.username && !hasApiKey) {
+                fallbackMessage += ' What is your Salesforce username?';
+              } else if (!sourceNode.config?.password && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your Salesforce password or access token?';
+              }
+            } else if (sourceName.includes('shopify')) {
+              if (!sourceNode.config?.store_url && !hasUrl) {
+                fallbackMessage +=
+                  ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
+              } else if (!sourceNode.config?.api_key && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your Shopify API key? (any non-empty string is fine)';
+              }
+            } else if (sourceName.includes('mailchimp')) {
+              if (!sourceNode.config?.api_key && !hasApiKey) {
+                fallbackMessage += ' What is your Mailchimp API key?';
+              } else if (!sourceNode.config?.datacenter && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your Mailchimp datacenter? (e.g., us1, us2, eu1)';
+              }
             } else {
-              // Both store URL and API key are provided, move to transform
-              fallbackMessage +=
-                ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
+              // Generic source
+              if (!sourceNode.config?.url && !hasUrl) {
+                fallbackMessage += ' What is your source system URL?';
+              } else if (!sourceNode.config?.api_key && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your API key? (any non-empty string is fine)';
+              }
             }
           } else if (transformNode && transformNode.status !== 'complete') {
             fallbackMessage +=
               ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
           } else if (destinationNode && destinationNode.status !== 'complete') {
-            fallbackMessage +=
-              ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
+            // Determine what destination field is missing based on destination name
+            const destName = destinationNode.name.toLowerCase();
+
+            if (destName.includes('snowflake')) {
+              if (!destinationNode.config?.account_url && !hasUrl) {
+                fallbackMessage +=
+                  ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
+              } else if (!destinationNode.config?.username && !hasApiKey) {
+                fallbackMessage += ' What is your Snowflake username?';
+              } else if (!destinationNode.config?.password && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your Snowflake password or private key?';
+              }
+            } else if (destName.includes('mailchimp')) {
+              if (!destinationNode.config?.api_key && !hasApiKey) {
+                fallbackMessage += ' What is your Mailchimp API key?';
+              } else if (!destinationNode.config?.datacenter && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your Mailchimp datacenter? (e.g., us1, us2, eu1)';
+              }
+            } else if (destName.includes('hubspot')) {
+              if (!destinationNode.config?.api_key && !hasApiKey) {
+                fallbackMessage += ' What is your HubSpot API key?';
+              }
+            } else {
+              // Generic destination
+              if (!destinationNode.config?.url && !hasUrl) {
+                fallbackMessage += ' What is your destination system URL?';
+              } else if (!destinationNode.config?.api_key && !hasApiKey) {
+                fallbackMessage +=
+                  ' What is your API key? (any non-empty string is fine)';
+              }
+            }
           } else {
             fallbackMessage += ' What would you like to configure next?';
           }
