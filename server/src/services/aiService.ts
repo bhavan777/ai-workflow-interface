@@ -120,48 +120,14 @@ export class GroqCloudClient {
       messages.filter(m => m.role === 'user').pop()?.content || '';
     const messageLength = lastUserMessage.length;
 
-    // Analyze the complexity of the request
-    const complexityIndicators = [
-      'complex',
-      'advanced',
-      'detailed',
-      'comprehensive',
-      'multiple',
-      'integration',
-      'database',
-      'transform',
-      'pipeline',
-      'workflow',
-    ];
+    // For JSON generation tasks, prioritize models that are better at structured output
+    // LLaMA 3.3 70B is more reliable for complex structured tasks
+    // LLaMA 3.1 70B is also good for structured output
+    // LLaMA 3.1 8B Instant is faster but less reliable for strict JSON formatting
 
-    const speedIndicators = [
-      'quick',
-      'simple',
-      'basic',
-      'fast',
-      'test',
-      'check',
-    ];
-
-    const hasComplexity = complexityIndicators.some(indicator =>
-      lastUserMessage.toLowerCase().includes(indicator)
-    );
-
-    const needsSpeed = speedIndicators.some(indicator =>
-      lastUserMessage.toLowerCase().includes(indicator)
-    );
-
-    // Model selection logic - using current available models
-    if (needsSpeed && messageLength < 100) {
-      console.log('🚀 Using LLaMA 3.1 8B for fast, simple task');
-      return 'llama3-8b-8192';
-    } else if (hasComplexity || messageLength > 200) {
-      console.log('🧠 Using LLaMA 3.3 70B for complex task');
-      return 'llama-3.3-70b-versatile';
-    } else {
-      console.log('⚡ Using LLaMA 3.1 8B Instant for balanced performance');
-      return 'llama-3.1-8b-instant';
-    }
+    // Always use a more reliable model for JSON generation
+    console.log('🧠 Using LLaMA 3.3 70B for reliable JSON generation');
+    return 'llama-3.3-70b-versatile';
   }
 
   async generateResponse(messages: any[]): Promise<string> {
@@ -173,29 +139,49 @@ export class GroqCloudClient {
       content: msg.content,
     }));
 
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: openAIMessages,
-        max_tokens: 2000,
-        temperature: 0.3,
-      }),
-    });
+    // Try the primary model first, then fallback to alternatives
+    const modelsToTry = [
+      selectedModel,
+      'llama-3.1-70b-versatile', // Fallback 1: LLaMA 3.1 70B
+      'llama3-8b-8192', // Fallback 2: LLaMA 3.1 8B
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Groq Cloud API error: ${response.status} - ${errorText}`
-      );
+    for (const model of modelsToTry) {
+      try {
+        console.log(`🔄 Trying model: ${model}`);
+
+        const response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: openAIMessages,
+            max_tokens: 2000,
+            temperature: 0, // Use 0 temperature for deterministic JSON generation
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(
+            `⚠️ Model ${model} failed: ${response.status} - ${errorText}`
+          );
+          continue; // Try next model
+        }
+
+        const data = (await response.json()) as any;
+        console.log(`✅ Successfully used model: ${model}`);
+        return data.choices[0].message.content;
+      } catch (error) {
+        console.warn(`⚠️ Model ${model} failed:`, error);
+        continue; // Try next model
+      }
     }
 
-    const data = (await response.json()) as any;
-    return data.choices[0].message.content;
+    throw new Error('All available models failed to generate a response');
   }
 }
 
