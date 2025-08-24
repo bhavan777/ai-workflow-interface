@@ -261,6 +261,10 @@ CRITICAL WORKFLOW REQUIREMENTS:
 - CRITICAL: When updating nodes, only provide the fields that are changing or being added
 - CRITICAL: Do NOT recreate nodes from scratch - only update the specific fields that need to change
 - CRITICAL: Preserve existing node configuration and only add/update new information
+- CRITICAL: When user provides information, UPDATE the corresponding node's config and status
+- CRITICAL: If user provides store_url, update source-node config and change status to "partial"
+- CRITICAL: If user provides api_key, update source-node config and change status to "complete"
+- CRITICAL: Always check what information the user provided and update nodes accordingly
 
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
@@ -492,6 +496,20 @@ CRITICAL NODE PERSISTENCE:
 - For nodes not being updated, include only essential fields (id, type, name, status)
 - The system will automatically merge your updates with existing node data
 - Always include all 3 nodes in every response to maintain structure
+
+EXAMPLE: If user provides "https://mystore.myshopify.com", update source-node like this:
+{
+  "id": "source-node",
+  "type": "source", 
+  "name": "Shopify Source",
+  "status": "partial",
+  "config": {"store_url": "https://mystore.myshopify.com"},
+  "data_requirements": {
+    "required_fields": ["store_url", "api_key"],
+    "provided_fields": ["store_url"],
+    "missing_fields": ["api_key"]
+  }
+}
 
 CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
 
