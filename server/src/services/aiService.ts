@@ -1015,6 +1015,7 @@ export const processMessage = async (
       '🤖 System prompt being sent (first 1000 chars):',
       SYSTEM_PROMPT.substring(0, 1000)
     );
+    console.log('🔄 Force rebuild timestamp:', new Date().toISOString());
     console.log('📝 Total messages being sent:', allMessages.length);
 
     console.log('📤 Sending to Groq Cloud...');
