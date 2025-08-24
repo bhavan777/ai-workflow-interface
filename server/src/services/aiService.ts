@@ -86,6 +86,33 @@ export class GroqCloudClient {
     this.apiKey = apiKey;
   }
 
+  // Validate API key by making a test request
+  async validateApiKey(): Promise<boolean> {
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 10,
+        }),
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid GROQ_API_KEY');
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error('❌ Groq API key validation failed:', error);
+      return false;
+    }
+  }
+
   // Generate response with automatic model selection and fallback
   async generateResponse(
     messages: any[],
