@@ -255,7 +255,7 @@ CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or afte
 
 WORKFLOW: 3 nodes (Source → Transform → Destination). Each needs 3 data points.
 
-TONE: Enthusiastic, professional, proactive. User wants to move forward - ask directly for what you need.
+TONE: Enthusiastic, professional, proactive, and graceful. User wants to move forward - guide them smoothly through the process.
 
 SERVICE VALIDATION: You can work with any valid data source/destination services based on your knowledge. Determine if services mentioned are valid for data transformation.
 
@@ -340,6 +340,13 @@ SEQUENTIAL DATA COLLECTION RULES:
 - For each node, ask for exactly ONE field at a time
 - Wait for user to provide the requested field before asking for the next one
 - Do not skip ahead or ask for multiple fields simultaneously
+
+NODE TRANSITION MESSAGES:
+- When starting a new node (first field of that node): "Perfect! Now I'll collect information related to [node type] configuration. Let's start with [first field]. For example: [sample example]"
+- When completing a node (last field of that node): "Excellent! [Node type] configuration is now complete. Let's move on to [next node type] configuration."
+- Be graceful and informative about transitions between nodes
+- Acknowledge completion of each node before moving to the next
+- ALWAYS provide a sample example when asking for data input from the user
 
 SERVICE-SPECIFIC FIELD DETERMINATION:
 - For Shopify Source: use ["store_url", "api_key", "api_secret"]
@@ -646,6 +653,156 @@ const isWorkflowComplete = (nodes: DataFlowNode[]): boolean => {
   return nodes.every(node => isNodeComplete(node));
 };
 
+// Helper function to check if we're starting a new node (first field of that node)
+const isStartingNewNode = (
+  nodes: DataFlowNode[],
+  nextDataPoint: { nodeId: string; fieldName: string; nodeName: string } | null
+): boolean => {
+  if (!nextDataPoint) return false;
+
+  const node = nodes.find(n => n.id === nextDataPoint.nodeId);
+  if (!node || !node.data_requirements) return false;
+
+  // Check if this is the first field being requested for this node
+  return node.data_requirements.provided_fields.length === 0;
+};
+
+// Helper function to check if we're completing a node (last field of that node)
+const isCompletingNode = (
+  nodes: DataFlowNode[],
+  nextDataPoint: { nodeId: string; fieldName: string; nodeName: string } | null
+): boolean => {
+  if (!nextDataPoint) return false;
+
+  const node = nodes.find(n => n.id === nextDataPoint.nodeId);
+  if (!node || !node.data_requirements) return false;
+
+  // Check if this is the last field being requested for this node
+  return node.data_requirements.missing_fields.length === 1;
+};
+
+// Helper function to get the next node type for transition messages
+const getNextNodeType = (currentNodeId: string): string => {
+  const nodeOrder = ['source-node', 'transform-node', 'destination-node'];
+  const currentIndex = nodeOrder.indexOf(currentNodeId);
+
+  if (currentIndex === -1 || currentIndex >= nodeOrder.length - 1) {
+    return 'workflow completion';
+  }
+
+  const nextNodeId = nodeOrder[currentIndex + 1];
+  switch (nextNodeId) {
+    case 'transform-node':
+      return 'data transformation';
+    case 'destination-node':
+      return 'destination';
+    default:
+      return 'next step';
+  }
+};
+
+// Helper function to get the current node type for transition messages
+const getCurrentNodeType = (nodeId: string): string => {
+  switch (nodeId) {
+    case 'source-node':
+      return 'source';
+    case 'transform-node':
+      return 'data transformation';
+    case 'destination-node':
+      return 'destination';
+    default:
+      return 'node';
+  }
+};
+
+// Helper function to get sample examples for different fields
+const getFieldExample = (fieldName: string, nodeType: string): string => {
+  const fieldNameLower = fieldName.toLowerCase();
+
+  // Source node examples
+  if (nodeType === 'source') {
+    if (
+      fieldNameLower.includes('store_url') ||
+      fieldNameLower.includes('url')
+    ) {
+      return 'https://mystore.myshopify.com';
+    } else if (fieldNameLower.includes('api_key')) {
+      return 'sk_test_123456789abcdef';
+    } else if (
+      fieldNameLower.includes('api_secret') ||
+      fieldNameLower.includes('secret')
+    ) {
+      return 'shpss_987654321fedcba';
+    } else if (fieldNameLower.includes('host')) {
+      return 'localhost:5432';
+    } else if (fieldNameLower.includes('database')) {
+      return 'my_database';
+    } else if (fieldNameLower.includes('connection_string')) {
+      return 'postgresql://user:pass@host:5432/db';
+    } else if (fieldNameLower.includes('file_path')) {
+      return '/path/to/data.csv';
+    } else if (fieldNameLower.includes('delimiter')) {
+      return ',';
+    } else if (fieldNameLower.includes('encoding')) {
+      return 'UTF-8';
+    } else if (fieldNameLower.includes('base_url')) {
+      return 'https://api.example.com';
+    } else if (fieldNameLower.includes('auth_method')) {
+      return 'Bearer Token';
+    } else if (fieldNameLower.includes('endpoint')) {
+      return '/v1/data';
+    }
+  }
+
+  // Transform node examples
+  if (nodeType === 'data transformation') {
+    if (fieldNameLower.includes('operation_type')) {
+      return 'aggregate, filter, join, or transform';
+    } else if (fieldNameLower.includes('parameters')) {
+      return 'group by product_id, sum(sales_amount)';
+    } else if (fieldNameLower.includes('output_format')) {
+      return 'JSON, CSV, or Parquet';
+    }
+  }
+
+  // Destination node examples
+  if (nodeType === 'destination') {
+    if (
+      fieldNameLower.includes('account_url') ||
+      fieldNameLower.includes('url')
+    ) {
+      return 'https://myaccount.snowflakecomputing.com';
+    } else if (fieldNameLower.includes('username')) {
+      return 'admin';
+    } else if (fieldNameLower.includes('password')) {
+      return 'secure_password_123';
+    } else if (fieldNameLower.includes('bucket')) {
+      return 'my-data-bucket';
+    } else if (fieldNameLower.includes('table')) {
+      return 'sales_data';
+    } else if (fieldNameLower.includes('sheet')) {
+      return 'Sales Report';
+    }
+  }
+
+  // Generic examples
+  if (fieldNameLower.includes('username')) {
+    return 'your_username';
+  } else if (fieldNameLower.includes('password')) {
+    return 'your_password';
+  } else if (fieldNameLower.includes('key')) {
+    return 'your_api_key';
+  } else if (fieldNameLower.includes('secret')) {
+    return 'your_secret_key';
+  } else if (fieldNameLower.includes('url')) {
+    return 'https://example.com';
+  } else if (fieldNameLower.includes('path')) {
+    return '/path/to/file';
+  }
+
+  return 'your_value_here';
+};
+
 export const processMessage = async (
   conversationHistory: Message[],
   currentMessage: Message,
@@ -732,14 +889,39 @@ export const processMessage = async (
 
     // Determine the next data point that should be requested
     const nextDataPoint = getNextDataPoint(existingWorkflowState.nodes || []);
-    const nextDataPointInfo = nextDataPoint
-      ? `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
-      : '\n\nWORKFLOW STATUS: All data points collected. Workflow is complete.';
+
+    // Check for node transitions
+    const isStartingNode = isStartingNewNode(
+      existingWorkflowState.nodes || [],
+      nextDataPoint
+    );
+    const isCompletingCurrentNode = isCompletingNode(
+      existingWorkflowState.nodes || [],
+      nextDataPoint
+    );
+
+    let transitionInfo = '';
+    if (nextDataPoint) {
+      const nodeType = getCurrentNodeType(nextDataPoint.nodeId);
+      const fieldExample = getFieldExample(nextDataPoint.fieldName, nodeType);
+
+      if (isStartingNode) {
+        transitionInfo = `\n\nNODE TRANSITION: Starting ${nodeType} configuration. Request: ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+      } else if (isCompletingCurrentNode) {
+        const nextNodeType = getNextNodeType(nextDataPoint.nodeId);
+        transitionInfo = `\n\nNODE TRANSITION: Completing ${nodeType} configuration. Request: ${nextDataPoint.fieldName}. Example: ${fieldExample}. After this field, move to ${nextNodeType} configuration.`;
+      } else {
+        transitionInfo = `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+      }
+    } else {
+      transitionInfo =
+        '\n\nWORKFLOW STATUS: All data points collected. Workflow is complete.';
+    }
 
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${nextDataPointInfo}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time.`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes.`,
     });
 
     // Add system prompt as first message
@@ -1009,4 +1191,5 @@ export {
   isNodeComplete,
   isWorkflowComplete,
   mergeNodesData,
+  getFieldExample,
 };
