@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import fetch from 'node-fetch';
 import * as path from 'path';
 
 // File-based conversation store for persistence
@@ -71,7 +70,7 @@ const deleteConversation = (conversationId: string): boolean => {
   return inMemoryConversations.delete(conversationId);
 };
 
-// Groq Cloud AI client with intelligent model selection
+// Improved Groq Cloud AI client with automatic model fallback
 export class GroqCloudClient {
   private apiKey: string;
   private baseUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
@@ -87,68 +86,37 @@ export class GroqCloudClient {
     this.apiKey = apiKey;
   }
 
-  // Validate API key by making a test request
-  async validateApiKey(): Promise<boolean> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'llama3-8b-8192',
-          messages: [{ role: 'user', content: 'test' }],
-          max_tokens: 10,
-        }),
-      });
+  // Generate response with automatic model selection and fallback
+  async generateResponse(
+    messages: any[],
+    options: {
+      maxTokens?: number;
+      temperature?: number;
+      speed?: 'fast' | 'balanced' | 'quality';
+      cost?: 'low' | 'medium' | 'high';
+    } = {}
+  ): Promise<string> {
+    const {
+      maxTokens = 4000,
+      temperature = 0.7,
+      speed = 'balanced',
+      cost = 'medium',
+    } = options;
 
-      if (response.status === 401) {
-        throw new Error('Invalid GROQ_API_KEY');
-      }
-
-      return response.ok;
-    } catch (error) {
-      console.error('❌ Groq API key validation failed:', error);
-      return false;
-    }
-  }
-
-  // Intelligent model selection based on task type
-  private selectBestModel(messages: any[]): string {
-    const lastUserMessage =
-      messages.filter(m => m.role === 'user').pop()?.content || '';
-    const messageLength = lastUserMessage.length;
-
-    // For JSON generation tasks, prioritize models that are better at structured output
-    // LLaMA 3.3 70B is more reliable for complex structured tasks
-    // LLaMA 3.1 70B is also good for structured output
-    // LLaMA 3.1 8B Instant is faster but less reliable for strict JSON formatting
-
-    // Always use a more reliable model for JSON generation
-    console.log('🧠 Using LLaMA 3.3 70B for reliable JSON generation');
-    return 'llama-3.3-70b-versatile';
-  }
-
-  async generateResponse(messages: any[]): Promise<string> {
-    // Automatically select the best model for this task
-    const selectedModel = this.selectBestModel(messages);
-
-    const openAIMessages = messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-    }));
-
-    // Try the primary model first, then fallback to alternatives
-    const modelsToTry = [
-      selectedModel,
-      'llama-3.1-70b-versatile', // Fallback 1: LLaMA 3.1 70B
-      'llama3-8b-8192', // Fallback 2: LLaMA 3.1 8B
+    // Define available models in order of preference
+    const availableModels = [
+      'mixtral-8x7b-32768', // Most reliable, high token limit
+      'llama3-8b-8192', // Fast, good for simple tasks
+      'llama3-70b-8192', // High quality, but may hit rate limits
     ];
 
-    for (const model of modelsToTry) {
+    let lastError: Error | null = null;
+
+    // Try each model until one works
+    for (const model of availableModels) {
       try {
-        console.log(`🔄 Trying model: ${model}`);
+        console.log(`🤖 Trying Groq model: ${model}`);
+        console.log(`📝 Input messages: ${messages.length} messages`);
 
         const response = await fetch(this.baseUrl, {
           method: 'POST',
@@ -157,31 +125,62 @@ export class GroqCloudClient {
             Authorization: `Bearer ${this.apiKey}`,
           },
           body: JSON.stringify({
-            model: model,
-            messages: openAIMessages,
-            max_tokens: 2000,
-            temperature: 0, // Use 0 temperature for deterministic JSON generation
+            model,
+            messages: messages.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            max_tokens: maxTokens,
+            temperature,
+            stream: false,
           }),
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.warn(
-            `⚠️ Model ${model} failed: ${response.status} - ${errorText}`
+          const errorData = (await response.json()) as any;
+          console.warn(`⚠️ Model ${model} failed:`, errorData.error?.message);
+
+          // If it's a rate limit, try the next model
+          if (errorData.error?.code === 'rate_limit_exceeded') {
+            lastError = new Error(
+              `Rate limit for ${model}: ${errorData.error?.message}`
+            );
+            continue;
+          }
+
+          // For other errors, throw immediately
+          throw new Error(
+            `Groq API error: ${errorData.error?.message || 'Unknown error'}`
           );
-          continue; // Try next model
         }
 
         const data = (await response.json()) as any;
-        console.log(`✅ Successfully used model: ${model}`);
-        return data.choices[0].message.content;
-      } catch (error) {
-        console.warn(`⚠️ Model ${model} failed:`, error);
-        continue; // Try next model
+        const content = data.choices[0]?.message?.content;
+
+        if (!content) {
+          throw new Error('No content received from Groq API');
+        }
+
+        console.log(
+          `✅ Generated response with ${model} (${content.length} characters)`
+        );
+        return content;
+      } catch (error: any) {
+        console.warn(`⚠️ Model ${model} failed:`, error.message);
+        lastError = error;
+
+        // If it's not a rate limit error, throw immediately
+        if (!error.message.includes('rate_limit')) {
+          throw error;
+        }
+
+        // For rate limits, continue to next model
+        continue;
       }
     }
 
-    throw new Error('All available models failed to generate a response');
+    // If all models failed, throw the last error
+    throw lastError || new Error('All available models failed');
   }
 }
 
