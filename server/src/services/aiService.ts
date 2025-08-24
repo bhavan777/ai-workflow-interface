@@ -302,6 +302,7 @@ CRITICAL RULES:
 - ALWAYS maintain the exact same JSON structure in every response
 - ALWAYS include all 3 nodes in every response (source-node, transform-node, destination-node)
 - ALWAYS include both connections in every response
+- CRITICAL: You MUST include nodes and connections in EVERY response, even if they haven't changed
 - Each node needs exactly 3 data points (no more, no less)
 - Update node status based on completion: pending → partial → complete
 - Store actual values securely on server side (not in WebSocket messages)
@@ -371,6 +372,7 @@ STATE MANAGEMENT:
 - Keep the same node names unless the user specifies a different service
 - CRITICAL: When user provides a field value, validate it and update the workflow state immediately
 - CRITICAL: Always include the complete updated workflow state in your response (nodes and connections)
+- CRITICAL: You MUST include both nodes and connections in EVERY response, even if they haven't changed
 
 NODE PROGRESSION LOGIC:
 - source-node: pending → partial (1-2 fields) → complete (3 fields) → move to transform-node
@@ -960,7 +962,7 @@ export const processMessage = async (
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. CRITICAL: You MUST include the complete nodes and connections in your response, even if they haven't changed. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
     });
 
     // Add system prompt as first message
@@ -1169,12 +1171,27 @@ export const processMessage = async (
 
     sendThought?.('✨ Perfect! I have what you need.');
 
-    // Merge the AI response with existing state to ensure we maintain the complete structure
+    // CRITICAL: Always ensure we have the complete workflow state
+    // If AI didn't provide nodes/connections, use existing state but ensure all nodes are present
     const updatedNodes = parsed.nodes
       ? mergeNodesData(existingWorkflowState.nodes || [], parsed.nodes)
-      : existingWorkflowState.nodes;
-    const updatedConnections =
-      parsed.connections || existingWorkflowState.connections;
+      : ensureAllNodesPresent(existingWorkflowState.nodes || []);
+
+    const updatedConnections = parsed.connections ||
+      existingWorkflowState.connections || [
+        {
+          id: 'conn1',
+          source: 'source-node',
+          target: 'transform-node',
+          status: 'pending',
+        },
+        {
+          id: 'conn2',
+          source: 'transform-node',
+          target: 'destination-node',
+          status: 'pending',
+        },
+      ];
 
     // Check if workflow is complete based on all nodes being complete
     const workflowComplete = isWorkflowComplete(updatedNodes || []);
