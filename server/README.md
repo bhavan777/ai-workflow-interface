@@ -1,174 +1,198 @@
-# AI Workflow Interface - Backend Server
+# AI Workflow Interface Server
 
-A Node.js/TypeScript backend server for the AI Workflow Interface, providing intelligent data pipeline creation through natural language processing.
+A Node.js server that provides AI-powered data pipeline configuration through conversational interfaces.
 
-## 🚀 Features
+## Overview
 
-- **🤖 Groq Cloud Integration**: Intelligent model selection (LLaMA 3.1 8B, LLaMA 3.3 70B)
-- **📊 3-Node Workflow Structure**: Enforced source → transform → destination pattern
-- **📈 Status Management**: Complete status progression (pending → partial → complete)
-- **🔄 Retry Logic**: Automatic retry with exponential backoff for API failures
-- **💾 Data Persistence**: File system with in-memory fallback
-- **🔒 API Validation**: Automatic Groq API key validation
-- **📡 WebSocket Support**: Real-time communication
-- **🏥 Health Monitoring**: Comprehensive health checks
+The server acts as an intelligent assistant that helps users build data pipelines by asking structured questions and maintaining workflow state. It uses Groq Cloud AI to process conversations and generate workflow configurations.
 
-## 🛠️ Setup
+## Core Behavior
 
-### Prerequisites
+### 1. Conversation Management
 
-- Node.js 18+
-- Groq Cloud API key
+- **Stores conversations** in JSON files (development) or in-memory (production)
+- **Clears conversations** on server startup for a clean slate
+- **Maintains conversation history** to avoid asking the same questions twice
+- **Handles conversation persistence** with automatic fallback to in-memory storage
 
-### Installation
+### 2. AI-Powered Workflow Configuration
 
-1. **Clone and install dependencies:**
+- **Creates rigid 3-node workflows**: Source → Transform → Destination
+- **Asks predefined questions** in a fixed order for each node
+- **Accepts any user input** without validation (assumes all input is correct)
+- **Maintains workflow state** across conversation turns
+- **Completes nodes sequentially** before moving to the next
 
-```bash
-cd server
-npm install
-```
+### 3. Rigid Question Script
 
-2. **Set up environment variables:**
+The AI follows a **fixed script** for every workflow:
 
-```bash
-cp env.example .env
-# Edit .env and add your GROQ_API_KEY
-```
+#### Source Node (3 questions, always in this order):
 
-3. **Get your Groq Cloud API key:**
-   - Visit [Groq Console](https://console.groq.com/)
-   - Create a free account
-   - Generate an API key (starts with `gsk_`)
+1. "What's your source account name or service identifier? For example: mycompany or myaccount"
+2. "What's your source username or access key? For example: user@company.com or access_key_123"
+3. "What's your source password or secret key? For example: mypassword123 or sk_live_1234567890abcdef"
 
-4. **Start the server:**
+#### Transform Node (3 questions, always in this order):
 
-```bash
-npm run dev
-```
+1. "What type of data transformation do you need? For example: filter, aggregate, or map"
+2. "What are the transformation parameters? For example: field_name, condition, or mapping_rules"
+3. "What is the output format? For example: json, csv, or structured_data"
 
-## 🔧 Configuration
+#### Destination Node (3 questions, always in this order):
 
-### Environment Variables
+1. "What's your destination account name or service identifier? For example: mywarehouse or mydatabase"
+2. "What's your destination username or access key? For example: admin@company.com or db_user"
+3. "What's your destination password or connection string? For example: mypassword123 or postgresql://user:pass@host:port/db"
 
-| Variable       | Description          | Required | Default     |
-| -------------- | -------------------- | -------- | ----------- |
-| `GROQ_API_KEY` | Groq Cloud API key   | ✅       | -           |
-| `PORT`         | Server port          | ❌       | 3001        |
-| `NODE_ENV`     | Environment          | ❌       | development |
-| `DEBUG`        | Enable debug logging | ❌       | false       |
+### 4. Node Configuration Structure
 
-### Model Selection
-
-The system automatically selects the best Groq model:
-
-- **🚀 LLaMA 3.1 8B Instant**: Fast, simple tasks
-- **⚡ LLaMA 3.1 8B**: Balanced performance
-- **🧠 LLaMA 3.3 70B**: Complex workflows
-
-## 📡 API Endpoints
-
-### Health Check
-
-```bash
-GET /health
-```
-
-Returns server and Groq API health status.
-
-### AI Workflow
-
-```bash
-POST /api/ai/start
-POST /api/ai/continue
-```
-
-### WebSocket
-
-```bash
-ws://localhost:3001
-```
-
-## 🚀 Deployment
-
-### Render (Recommended)
-
-1. Connect your GitHub repository
-2. Set environment variables in Render dashboard
-3. Deploy automatically on push
-
-### Manual Deployment
-
-```bash
-npm run build
-npm start
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-**❌ "GROQ_API_KEY environment variable is required"**
-
-- Ensure your API key is set in environment variables
-- Check that the key starts with `gsk_`
-
-**❌ "Invalid GROQ_API_KEY format"**
-
-- Verify your API key starts with `gsk_`
-- Regenerate the key in Groq Console if needed
-
-**❌ "Groq API key validation failed"**
-
-- Check your internet connection
-- Verify the API key is valid and has credits
-- Check Groq service status
-
-**❌ "File system save failed"**
-
-- The system will automatically use in-memory storage
-- This is normal in production environments
-
-**❌ "All retry attempts failed"**
-
-- Check Groq API status
-- Verify your API key has sufficient credits
-- Try again in a few minutes
-
-### Health Check Response
+Each node has a **fixed structure**:
 
 ```json
 {
-  "status": "ok",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "uptime": 3600,
-  "groq_api": "healthy"
+  "id": "source-node|transform-node|destination-node",
+  "type": "source|transform|destination",
+  "name": "Data Source|Data Transform|Data Destination",
+  "status": "pending|partial|complete",
+  "config": {},
+  "data_requirements": {
+    "required_fields": ["field1", "field2", "field3"],
+    "provided_fields": [],
+    "missing_fields": ["field1", "field2", "field3"]
+  }
 }
 ```
 
-### Logs
+## Key Requirements
 
-Monitor logs for:
+### 1. Rigid Configuration
 
-- `✅ Groq API key validated successfully`
-- `⚠️ Groq API key validation failed`
-- `🔄 Attempt X/3 to call Groq Cloud...`
-- `✅ All conversations cleared`
+- ✅ **Fixed node structure** - Never changes based on user input
+- ✅ **Fixed question script** - Same questions for every workflow
+- ✅ **Fixed field requirements** - Same fields for each node type
+- ✅ **No dynamic customization** - AI doesn't adapt questions to specific services
 
-## 📊 Performance
+### 2. No Validation
 
-- **Response Time**: 2-10 seconds (depending on model)
-- **Retry Logic**: 3 attempts with exponential backoff
-- **Timeout**: 60 seconds per request
-- **Memory Usage**: ~50MB base + conversation storage
+- ✅ **Accepts all input** - Never rejects or questions user input
+- ✅ **No format checking** - Doesn't validate URLs, API keys, etc.
+- ✅ **No real-world verification** - Doesn't check if credentials actually exist
+- ✅ **Assumes correctness** - Treats all input as valid data
 
-## 🔒 Security
+### 3. Sequential Processing
 
-- CORS protection for web clients
-- Rate limiting on API endpoints
-- API key validation on startup
-- Graceful error handling
+- ✅ **Source → Transform → Destination** - Always in this order
+- ✅ **Complete one node at a time** - Never asks questions for multiple nodes simultaneously
+- ✅ **Move to next only when complete** - All fields must be provided before progression
 
-## 📝 License
+### 4. State Persistence
 
-ISC License
+- ✅ **Maintains workflow state** - Preserves configuration across messages
+- ✅ **Updates incrementally** - Only changes fields that are being updated
+- ✅ **Preserves existing data** - Never recreates nodes from scratch
+
+### 5. Conversation Flow
+
+- ✅ **One question at a time** - Never asks multiple questions simultaneously
+- ✅ **Clear examples** - Every question includes "For example:" guidance
+- ✅ **Thank user** - Acknowledges each piece of information provided
+- ✅ **Track progress** - Updates node status based on provided information
+
+## Technical Implementation
+
+### AI Service (`aiService.ts`)
+
+- **Groq Cloud integration** with automatic model fallback
+- **JSON response parsing** with error recovery and retry logic
+- **Conversation history management** with file-based persistence
+- **Workflow state tracking** with node configuration updates
+
+### WebSocket Handler (`websocket.ts`)
+
+- **Real-time communication** with frontend
+- **Message routing** between client and AI service
+- **Thought broadcasting** for user feedback during processing
+- **Error handling** with graceful degradation
+
+### Server Configuration
+
+- **Environment variables** for API keys and configuration
+- **CORS handling** for cross-origin requests
+- **Security middleware** for request validation
+- **Graceful shutdown** handling
+
+## API Endpoints
+
+### WebSocket (`/ws`)
+
+- **Real-time bidirectional communication**
+- **Message format**: `{ type: 'message', content: string }`
+- **Response format**: `{ type: 'message', content: string, nodes?: [], connections?: [] }`
+
+### Health Check (`/api/hello`)
+
+- **Simple health endpoint** for monitoring
+- **Returns**: `{ message: "Hello from AI Workflow Server!" }`
+
+## Environment Variables
+
+```bash
+GROQ_API_KEY=gsk_...          # Required: Groq Cloud API key
+PORT=3001                     # Optional: Server port (default: 3001)
+NODE_ENV=production          # Optional: Environment mode
+```
+
+## Error Handling
+
+### AI Service Errors
+
+- **API key validation** on startup
+- **Model fallback** when primary model fails
+- **JSON parsing recovery** with retry logic
+- **Graceful degradation** when AI service is unavailable
+
+### Conversation Errors
+
+- **File system fallback** to in-memory storage
+- **Conversation clearing** on startup for clean state
+- **Error messages** returned to client for user feedback
+
+## Deployment
+
+### Railway Deployment
+
+- **Automatic deployment** on push to main branch
+- **Environment variable configuration** through Railway dashboard
+- **Health check monitoring** for service availability
+
+### Local Development
+
+```bash
+npm install
+npm run dev          # Development with hot reload
+npm start           # Production mode
+```
+
+## Monitoring and Logging
+
+- **Console logging** for debugging and monitoring
+- **Error tracking** with detailed error messages
+- **Performance monitoring** for AI response times
+- **Conversation tracking** for debugging user flows
+
+## Security Considerations
+
+- **No input validation** - Accepts all user input as-is
+- **No credential verification** - Doesn't test provided credentials
+- **Environment variable protection** - API keys stored securely
+- **CORS configuration** - Controlled cross-origin access
+
+## Performance Characteristics
+
+- **AI response time**: 1-10 seconds depending on model
+- **WebSocket latency**: Near real-time communication
+- **Memory usage**: Minimal for conversation storage
+- **Scalability**: Stateless design allows horizontal scaling
+
+This server is designed to be **predictable, consistent, and user-friendly** while maintaining a rigid structure that ensures all workflows follow the same configuration pattern.

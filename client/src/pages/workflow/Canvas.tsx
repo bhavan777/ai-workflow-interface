@@ -22,7 +22,7 @@ interface CanvasProps {
 }
 
 // Custom Node Component
-const WorkflowNode = ({ data }: { data: any }) => {
+const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
   const getNodeIcon = (type: string) => {
     switch (type) {
       case 'source':
@@ -108,23 +108,22 @@ const WorkflowNode = ({ data }: { data: any }) => {
       <div className="w-32 rounded-lg shadow-md bg-background border border-border overflow-hidden">
         {/* Colored Header */}
         <div
-          className={cn(
-            'h-6 flex items-center justify-between px-2',
-            getNodeColor(data.type)
-          )}
+          className={cn('h-6 flex items-center px-2', getNodeColor(data.type))}
         >
-          {/* Left side - Icon and Name */}
+          {/* Icon and Name */}
           <div className="flex items-center gap-1">
             {getNodeIcon(data.type)}
             <p className="text-[8px] font-medium text-white whitespace-nowrap leading-none">
               {data.name}
             </p>
           </div>
+        </div>
 
-          {/* Right side - Status Pill */}
+        {/* Status Pill - Below Title */}
+        <div className="px-2 py-1 bg-background border-b border-border">
           <div
             className={cn(
-              'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5',
+              'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5 w-fit',
               getStatusPillColor(data.status)
             )}
           >
@@ -134,10 +133,10 @@ const WorkflowNode = ({ data }: { data: any }) => {
         </div>
 
         {/* White Content Area - Data Requirements */}
-        <div className="h-28 bg-background p-2">
+        <div className="h-24 bg-background p-2">
           <div className="space-y-1">
             {/* Data Requirements List */}
-            {data.data_requirements &&
+            {data.data_requirements?.required_fields &&
             data.data_requirements.required_fields.length > 0 ? (
               data.data_requirements.required_fields.map((field: string) => {
                 const isProvided =

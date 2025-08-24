@@ -22,6 +22,11 @@ export interface DataFlowNode {
   status: 'pending' | 'partial' | 'complete' | 'error';
   config?: Record<string, any>;
   position?: { x: number; y: number };
+  data_requirements?: {
+    required_fields: string[];
+    provided_fields: string[];
+    missing_fields: string[];
+  };
 }
 
 export interface DataFlowConnection {
