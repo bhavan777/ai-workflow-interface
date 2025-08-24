@@ -1,9 +1,7 @@
 import Layout from '@/components/Layout';
 import Home from '@/pages/home';
 import Workflow from '@/pages/workflow';
-import { store } from '@/store';
 import { useEffect } from 'react';
-import { Provider } from 'react-redux';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 function App() {
@@ -19,28 +17,26 @@ function App() {
   }, []);
 
   return (
-    <Provider store={store}>
-      <Router>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Layout>
-                <Home />
-              </Layout>
-            }
-          />
-          <Route
-            path="/workflow"
-            element={
-              <Layout>
-                <Workflow />
-              </Layout>
-            }
-          />
-        </Routes>
-      </Router>
-    </Provider>
+    <Router>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <Home />
+            </Layout>
+          }
+        />
+        <Route
+          path="/workflow"
+          element={
+            <Layout>
+              <Workflow />
+            </Layout>
+          }
+        />
+      </Routes>
+    </Router>
   );
 }
 

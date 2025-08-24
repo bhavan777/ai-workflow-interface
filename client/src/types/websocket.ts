@@ -9,6 +9,7 @@ export interface Message {
   // For assistant MESSAGE responses - only include if workflow state changed
   nodes?: DataFlowNode[];
   connections?: DataFlowConnection[];
+  workflow_complete?: boolean; // Indicates if the workflow configuration is complete
 
   // For status updates
   status?: 'processing' | 'complete' | 'error';

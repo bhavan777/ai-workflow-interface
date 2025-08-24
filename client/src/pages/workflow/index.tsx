@@ -1,8 +1,6 @@
 import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
 import { cn } from '@/lib/utils';
-import { useAppDispatch } from '@/store/hooks';
-import { addMessage, setCurrentThought } from '@/store/slices/chatSlice';
 import type { Message } from '@/types';
 import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,7 +10,6 @@ import Chat from './chat';
 
 export default function Workflow() {
   const [isLoading, setIsLoading] = useState(false);
-  const dispatch = useAppDispatch();
   const hasInitialized = useRef(false);
   const hasStartedConversation = useRef(false);
   const location = useLocation();
@@ -23,6 +20,8 @@ export default function Workflow() {
     currentThought,
     addUserMessage,
     setLoadingState,
+    addMessage,
+    setCurrentThought,
   } = useChat();
 
   // WebSocket handlers
@@ -32,12 +31,12 @@ export default function Workflow() {
 
       // Handle thoughts separately (server-sent only)
       if (message.type === 'THOUGHT') {
-        dispatch(setCurrentThought(message.content));
+        setCurrentThought(message.content);
         return;
       }
 
       // Add non-thought messages to the store
-      dispatch(addMessage(message));
+      addMessage(message);
 
       // Update loading state based on message type
       if (message.type === 'STATUS') {
@@ -47,15 +46,15 @@ export default function Workflow() {
         // Assistant message received, stop loading and clear thought
         setIsLoading(false);
         setLoadingState(false);
-        dispatch(setCurrentThought(null)); // Clear thought when assistant responds
+        setCurrentThought(null); // Clear thought when assistant responds
       } else if (message.type === 'ERROR') {
         // Error received, stop loading and clear thought
         setIsLoading(false);
         setLoadingState(false);
-        dispatch(setCurrentThought(null)); // Clear thought on error
+        setCurrentThought(null); // Clear thought on error
       }
     },
-    [dispatch, setLoadingState]
+    [setLoadingState, addMessage, setCurrentThought]
   );
 
   // Initialize WebSocket
@@ -127,6 +126,12 @@ export default function Workflow() {
     }
   };
 
+  const handleStartWorkflow = () => {
+    console.log('🚀 Starting workflow with configuration:', currentWorkflow);
+    // TODO: Implement workflow execution logic
+    alert('Workflow started! This would trigger the actual data pipeline execution.');
+  };
+
   return (
     <>
       {/* Status Indicator */}
@@ -153,6 +158,7 @@ export default function Workflow() {
         <Chat
           onStartConversation={handleStartConversation}
           onSendMessage={handleSendMessage}
+          onStartWorkflow={handleStartWorkflow}
         />
         <Canvas currentWorkflow={currentWorkflow} />
       </div>

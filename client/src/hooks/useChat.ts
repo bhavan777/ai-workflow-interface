@@ -1,41 +1,32 @@
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import {
-  addMessage,
-  clearMessages,
-  setLoading,
-} from '@/store/slices/chatSlice';
-import type { Message } from '@/types';
+import { useChatStore } from '@/store/useChatStore';
 import { useCallback } from 'react';
 
 export const useChat = () => {
-  const dispatch = useAppDispatch();
-
-  const { messages, isLoading, error, currentWorkflow, currentThought } =
-    useAppSelector(state => state.chat);
-
-  const addUserMessage = useCallback(
-    (content: string) => {
-      const userMessage: Message = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        role: 'user',
-        type: 'MESSAGE',
-        content,
-        timestamp: new Date().toISOString(),
-      };
-      dispatch(addMessage(userMessage));
-    },
-    [dispatch]
-  );
+  const {
+    messages,
+    isLoading,
+    error,
+    currentWorkflow,
+    currentThought,
+    workflowComplete,
+    addMessage,
+    setCurrentThought,
+    setWorkflowComplete,
+    setLoading,
+    setError,
+    clearMessages,
+    addUserMessage,
+  } = useChatStore();
 
   const clearConversation = useCallback(() => {
-    dispatch(clearMessages());
-  }, [dispatch]);
+    clearMessages();
+  }, [clearMessages]);
 
   const setLoadingState = useCallback(
     (loading: boolean) => {
-      dispatch(setLoading(loading));
+      setLoading(loading);
     },
-    [dispatch]
+    [setLoading]
   );
 
   return {
@@ -44,8 +35,14 @@ export const useChat = () => {
     error,
     currentWorkflow,
     currentThought,
+    workflowComplete,
     addUserMessage,
     clearConversation,
     setLoadingState,
+    // Expose store actions for direct use
+    addMessage,
+    setCurrentThought,
+    setWorkflowComplete,
+    setError,
   };
 };

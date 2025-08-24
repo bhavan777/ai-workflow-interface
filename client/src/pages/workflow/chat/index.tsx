@@ -2,18 +2,21 @@ import { useChat } from '@/hooks/useChat';
 import { useState } from 'react';
 import ChatInput from './ChatInput';
 import Messages from './Messages';
+import StartWorkflowButton from './StartWorkflowButton';
 import WorkflowSetup from './WorkflowSetup';
 
 interface ChatProps {
   onStartConversation: (description: string) => Promise<void>;
   onSendMessage: (content: string) => void;
+  onStartWorkflow?: () => void;
 }
 
 export default function Chat({
   onStartConversation,
   onSendMessage,
+  onStartWorkflow,
 }: ChatProps) {
-  const { messages, isLoading } = useChat();
+  const { messages, isLoading, workflowComplete } = useChat();
   const [description, setDescription] = useState('');
   const [inputValue, setInputValue] = useState('');
 
@@ -29,6 +32,12 @@ export default function Chat({
     if (!inputValue.trim()) return;
     onSendMessage(inputValue);
     setInputValue('');
+  };
+
+  const handleStartWorkflow = () => {
+    if (onStartWorkflow) {
+      onStartWorkflow();
+    }
   };
 
   // If no conversation has started, show the workflow setup
@@ -49,6 +58,11 @@ export default function Chat({
     <div className="w-1/2 border-r border-border bg-background/50 flex flex-col h-full">
       {/* Messages - takes up most of the space */}
       <Messages messages={messages} />
+
+      {/* Start Workflow Button - shows when configuration is complete */}
+      {workflowComplete && (
+        <StartWorkflowButton onStartWorkflow={handleStartWorkflow} />
+      )}
 
       {/* Chat Input - fixed at bottom */}
       <ChatInput

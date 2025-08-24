@@ -196,6 +196,7 @@ export interface Message {
   // For assistant MESSAGE responses - only include if workflow state changed
   nodes?: DataFlowNode[];
   connections?: DataFlowConnection[];
+  workflow_complete?: boolean; // Indicates if the workflow configuration is complete
 
   // For status updates
   status?: 'processing' | 'complete' | 'error';
@@ -260,7 +261,51 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
       "target": "destination-node",
       "status": "pending"
     }
-  ]
+  ],
+  "workflow_complete": false
+}
+
+WHEN ALL NODES ARE COMPLETE, USE THIS FORMAT:
+{
+  "message": "🎉 Perfect! Your data pipeline configuration is complete. All nodes are configured and ready to go. You can now start your workflow!",
+  "nodes": [
+    {
+      "id": "source-node",
+      "type": "source", 
+      "name": "Shopify Source",
+      "status": "complete",
+      "config": { "store_url": "provided_value", "api_key": "provided_value" }
+    },
+    {
+      "id": "transform-node",
+      "type": "transform",
+      "name": "Data Transform", 
+      "status": "complete",
+      "config": { "type": "provided_value" }
+    },
+    {
+      "id": "destination-node",
+      "type": "destination",
+      "name": "Snowflake Destination",
+      "status": "complete", 
+      "config": { "account_url": "provided_value" }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn1",
+      "source": "source-node",
+      "target": "transform-node",
+      "status": "complete"
+    },
+    {
+      "id": "conn2", 
+      "source": "transform-node",
+      "target": "destination-node",
+      "status": "complete"
+    }
+  ],
+  "workflow_complete": true
 }
 
 RULES:
@@ -272,7 +317,7 @@ RULES:
 6. Thank user for each piece of information provided
 7. Ask the next single question needed
 8. Set node status to "complete" when all required fields for that node are provided
-9. When all nodes are "complete", provide final success message
+9. When all nodes are "complete", set "workflow_complete": true and provide success message
 10. NEVER ask for information that has already been provided
 11. ALWAYS check conversation history to see what information is already available
 12. If user provides information for a different step, acknowledge it and continue with the current step
@@ -291,11 +336,12 @@ VALIDATION RULES:
 
 CONVERSATION FLOW:
 - User starts: "I want to connect Shopify to Snowflake"
-- Assistant: {"message": "Great! Let's set up your data pipeline. What is your Shopify store URL?", "nodes": [...], "connections": [...]}
+- Assistant: {"message": "Great! Let's set up your data pipeline. What is your Shopify store URL?", "nodes": [...], "connections": [...], "workflow_complete": false}
 - User: "mystore.myshopify.com"  
-- Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...]}
+- Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...], "workflow_complete": false}
 - User: "abc123"
-- Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...]}
+- Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...], "workflow_complete": false}
+- When all complete: {"message": "🎉 Perfect! Your data pipeline configuration is complete...", "workflow_complete": true}
 
 VALIDATION EXAMPLES:
 - If user provides "my store" for URL: "I need a valid URL. For example: https://mystore.myshopify.com"
@@ -628,6 +674,11 @@ export const processMessage = async (
     if (hasStateChange) {
       response.nodes = parsed.nodes || [];
       response.connections = parsed.connections || [];
+    }
+
+    // Include workflow completion status
+    if (parsed.workflow_complete !== undefined) {
+      response.workflow_complete = parsed.workflow_complete;
     }
 
     return response;
