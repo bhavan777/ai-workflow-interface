@@ -287,7 +287,10 @@ RULES:
 7. Ask the next single question needed
 8. Set node status to "complete" when all required fields for that node are provided
 9. When all nodes are "complete", provide final success message
-10. If user provides duplicate information, acknowledge it and ask for the next required field
+10. NEVER ask for information that has already been provided
+11. ALWAYS check conversation history to see what information is already available
+12. If user provides information for a different step, acknowledge it and continue with the current step
+13. If user asks about options, provide them clearly and ask for their choice
 
 CONVERSATION FLOW:
 - User starts: "I want to connect Shopify to Snowflake"
@@ -296,6 +299,8 @@ CONVERSATION FLOW:
 - Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...]}
 - User: "abc123"
 - Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...]}
+
+IMPORTANT: Always check the conversation history to see what information has already been provided. Do not ask for the same information twice.
 
 CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
 
@@ -359,6 +364,15 @@ export const processMessage = async (
 ): Promise<Message> => {
   try {
     console.log('🔄 Starting processMessage with Groq Cloud...');
+    console.log(`📚 Conversation history length: ${conversationHistory.length}`);
+    console.log(`📝 Current message: ${currentMessage.content}`);
+    
+    // Log the last few messages for debugging
+    const recentMessages = conversationHistory.slice(-5);
+    console.log('📋 Recent conversation history:');
+    recentMessages.forEach((msg, index) => {
+      console.log(`  ${index + 1}. [${msg.role}] ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
+    });
 
     // Check if API key is available
     if (!process.env.GROQ_API_KEY) {
@@ -475,14 +489,47 @@ export const processMessage = async (
       console.error('❌ Failed to parse JSON response:', parseError);
       console.log('📄 Attempted to parse:', jsonContent);
 
-      // Return a fallback response asking for the next step
+      // Get current workflow state to provide context-aware fallback
+      const currentState = getCurrentWorkflowState(conversationHistory);
+
+      // Determine what to ask for next based on current state
+      let fallbackMessage =
+        "I understand. Let's continue with the configuration.";
+
+      if (!currentState.nodes || currentState.nodes.length === 0) {
+        fallbackMessage += ' What is your Shopify store URL?';
+      } else {
+        const sourceNode = currentState.nodes.find(n => n.type === 'source');
+        const transformNode = currentState.nodes.find(
+          n => n.type === 'transform'
+        );
+        const destinationNode = currentState.nodes.find(
+          n => n.type === 'destination'
+        );
+
+        if (sourceNode && sourceNode.status !== 'complete') {
+          if (!sourceNode.config?.store_url) {
+            fallbackMessage += ' What is your Shopify store URL?';
+          } else if (!sourceNode.config?.api_key) {
+            fallbackMessage += ' What is your Shopify API key?';
+          }
+        } else if (transformNode && transformNode.status !== 'complete') {
+          fallbackMessage +=
+            ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
+        } else if (destinationNode && destinationNode.status !== 'complete') {
+          fallbackMessage += ' What is your Snowflake account URL?';
+        } else {
+          fallbackMessage += ' What would you like to configure next?';
+        }
+      }
+
+      // Return a context-aware fallback response
       return {
         id: generateId(),
         response_to: currentMessage.id,
         role: 'assistant',
         type: 'MESSAGE',
-        content:
-          "I understand. Let's continue with the configuration. What is your Shopify API key?",
+        content: fallbackMessage,
         timestamp: new Date().toISOString(),
       };
     }

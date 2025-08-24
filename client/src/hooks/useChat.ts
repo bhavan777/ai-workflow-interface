@@ -10,9 +10,8 @@ import { useCallback } from 'react';
 export const useChat = () => {
   const dispatch = useAppDispatch();
 
-  const { messages, isLoading, error, currentWorkflow, currentThought } = useAppSelector(
-    state => state.chat
-  );
+  const { messages, isLoading, error, currentWorkflow, currentThought } =
+    useAppSelector(state => state.chat);
 
   const addUserMessage = useCallback(
     (content: string) => {
