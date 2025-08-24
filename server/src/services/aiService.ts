@@ -639,37 +639,14 @@ export const processMessage = async (
     console.log('📤 Sending to Groq Cloud...');
     sendThought?.('💭 Figuring out the best way to help you...');
 
-    // Send to Groq Cloud with increased timeout and retry logic
-    let result: string | undefined;
-    let lastError: Error | undefined;
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`🔄 Attempt ${attempt}/3 to call Groq Cloud...`);
-        result = await Promise.race([
-          groqClient.generateResponse(allMessages),
-          new Promise<never>(
-            (_, reject) =>
-              setTimeout(
-                () => reject(new Error('Groq Cloud API timeout')),
-                60000
-              ) // Increased to 60 seconds
-          ),
-        ]);
-        break; // Success, exit retry loop
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
-        if (attempt < 3) {
-          // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-        }
-      }
-    }
-
-    if (!result) {
-      throw lastError || new Error('All retry attempts failed');
-    }
+    // Send to Groq Cloud with timeout
+    const result = await Promise.race([
+      groqClient.generateResponse(allMessages),
+      new Promise<never>(
+        (_, reject) =>
+          setTimeout(() => reject(new Error('Groq Cloud API timeout')), 60000) // 60 seconds timeout
+      ),
+    ]);
 
     console.log('✅ Groq Cloud response received');
     const content = result;

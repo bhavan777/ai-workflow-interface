@@ -164,7 +164,7 @@ export class GroqCloudClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
+          model: 'mixtral-8x7b-32768',
           messages: [
             {
               role: 'user',
@@ -202,17 +202,18 @@ export class GroqCloudClient {
       cost = 'medium',
     } = requirements;
 
-    // Model selection logic based on requirements
-    if (speed === 'fast' || cost === 'low') {
+    // Updated model selection with current available models
+    // Priority: mixtral-8x7b-32768 (most reliable), then llama3-8b-8192
+    if (maxTokens > 8000 || speed === 'quality') {
+      return 'mixtral-8x7b-32768'; // Best quality, highest token limit
+    } else if (speed === 'fast' || cost === 'low') {
       return 'llama3-8b-8192'; // Fastest and cheapest
-    } else if (maxTokens > 8000 || speed === 'quality') {
-      return 'llama3-70b-8192'; // Best quality, highest token limit
     } else {
-      return 'llama3-8b-8192'; // Balanced option
+      return 'mixtral-8x7b-32768'; // Balanced option (most reliable)
     }
   }
 
-  // Generate response with automatic model selection
+  // Generate response with automatic model selection and fallback
   async generateResponse(
     messages: ConversationMessage[],
     options: {
@@ -229,51 +230,84 @@ export class GroqCloudClient {
       cost = 'medium',
     } = options;
 
-    const model = this.getBestModel({ maxTokens, speed, cost });
+    // Define available models in order of preference
+    const availableModels = [
+      'mixtral-8x7b-32768', // Most reliable, high token limit
+      'llama3-8b-8192', // Fast, good for simple tasks
+      'llama3-70b-8192', // High quality, but may hit rate limits
+    ];
 
-    try {
-      console.log(`🤖 Using Groq model: ${model}`);
-      console.log(`📝 Input messages: ${messages.length} messages`);
+    let lastError: Error | null = null;
 
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          max_tokens: maxTokens,
-          temperature,
-          stream: false,
-        }),
-      });
+    // Try each model until one works
+    for (const model of availableModels) {
+      try {
+        console.log(`🤖 Trying Groq model: ${model}`);
+        console.log(`📝 Input messages: ${messages.length} messages`);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Groq API error:', errorData);
-        throw new Error(
-          `Groq API error: ${errorData.error?.message || 'Unknown error'}`
+        const response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: messages.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            max_tokens: maxTokens,
+            temperature,
+            stream: false,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.warn(`⚠️ Model ${model} failed:`, errorData.error?.message);
+
+          // If it's a rate limit, try the next model
+          if (errorData.error?.code === 'rate_limit_exceeded') {
+            lastError = new Error(
+              `Rate limit for ${model}: ${errorData.error?.message}`
+            );
+            continue;
+          }
+
+          // For other errors, throw immediately
+          throw new Error(
+            `Groq API error: ${errorData.error?.message || 'Unknown error'}`
+          );
+        }
+
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+
+        if (!content) {
+          throw new Error('No content received from Groq API');
+        }
+
+        console.log(
+          `✅ Generated response with ${model} (${content.length} characters)`
         );
+        return content;
+      } catch (error: any) {
+        console.warn(`⚠️ Model ${model} failed:`, error.message);
+        lastError = error;
+
+        // If it's not a rate limit error, throw immediately
+        if (!error.message.includes('rate_limit')) {
+          throw error;
+        }
+
+        // For rate limits, continue to next model
+        continue;
       }
-
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content;
-
-      if (!content) {
-        throw new Error('No content received from Groq API');
-      }
-
-      console.log(`✅ Generated response (${content.length} characters)`);
-      return content;
-    } catch (error) {
-      console.error('❌ Error generating response:', error);
-      throw error;
     }
+
+    // If all models failed, throw the last error
+    throw lastError || new Error('All available models failed');
   }
 }
 
