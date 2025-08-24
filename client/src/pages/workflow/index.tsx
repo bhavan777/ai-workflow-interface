@@ -15,7 +15,6 @@ export default function Workflow() {
   const {
     messages,
     currentWorkflow,
-    currentThought,
     addUserMessage,
     setLoadingState,
     addMessage,
@@ -29,7 +28,7 @@ export default function Workflow() {
 
       // Handle thoughts separately (server-sent only)
       if (message.type === 'THOUGHT') {
-        setCurrentThought(message.content);
+        setCurrentThought(message);
         return;
       }
 
@@ -44,7 +43,7 @@ export default function Workflow() {
         // Assistant message received, stop loading and clear thought
         setIsLoading(false);
         setLoadingState(false);
-        setCurrentThought(null); // Clear thought when assistant responds
+        setCurrentThought(null); // Clear thought when AI responds
       } else if (message.type === 'ERROR') {
         // Error received, stop loading and clear thought
         setIsLoading(false);

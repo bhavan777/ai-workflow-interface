@@ -1,4 +1,6 @@
-import type { Message } from '@/store/types';
+import type { Message } from '@/types';
+import { AnimatePresence } from 'framer-motion';
+import Thought from './Thought';
 
 interface ThoughtsPanelProps {
   thoughts: Message[];
@@ -15,12 +17,11 @@ export default function ThoughtsPanel({ thoughts }: ThoughtsPanelProps) {
         AI Thoughts
       </h3>
       <div className="space-y-2 overflow-y-auto h-full pr-2">
-        {thoughts.map(thought => (
-          <div key={thought.id} className="flex items-start space-x-2 text-sm">
-            <span className="text-muted-foreground">•</span>
-            <span className="text-foreground">{thought.content}</span>
-          </div>
-        ))}
+        <AnimatePresence mode="popLayout">
+          {thoughts.map((thought, index) => (
+            <Thought key={thought.id} thought={thought} index={index} />
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

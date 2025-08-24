@@ -1,8 +1,8 @@
 import { useChat } from '@/hooks/useChat';
 import type { Message as MessageType } from '@/types';
-import Message from './Message';
-import Thought from './Thought';
 import { useEffect, useRef } from 'react';
+import CurrentThought from './CurrentThought';
+import Message from './Message';
 
 interface MessagesProps {
   messages: MessageType[];
@@ -21,9 +21,9 @@ export default function Messages({
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollMarkerRef.current) {
-      scrollMarkerRef.current.scrollIntoView({ 
+      scrollMarkerRef.current.scrollIntoView({
         behavior: 'smooth',
-        block: 'end'
+        block: 'end',
       });
     }
   }, [messages, currentThought]);
@@ -58,7 +58,7 @@ export default function Messages({
         />
       ))}
 
-      {currentThought && <Thought thought={currentThought} />}
+      {currentThought && <CurrentThought thought={currentThought} />}
 
       {/* Visual indicator when workflow is complete */}
       {isWorkflowComplete && (

@@ -52,13 +52,13 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
   const getStatusPillColor = (status: string) => {
     switch (status) {
       case 'complete':
-        return 'bg-green-500 text-white';
+        return 'bg-green-600/80 text-white';
       case 'partial':
-        return 'bg-orange-500 text-white';
+        return 'bg-orange-600/80 text-white';
       case 'error':
-        return 'bg-red-500 text-white';
+        return 'bg-red-600/80 text-white';
       default:
-        return 'bg-gray-400 text-white';
+        return 'bg-gray-600/80 text-white';
     }
   };
 
@@ -106,29 +106,32 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
 
       {/* Node Content */}
       <div className="w-32 rounded-lg shadow-md bg-background border border-border overflow-hidden">
-        {/* Colored Header */}
+        {/* Colored Header with Icon+Title and Status Pill */}
         <div
-          className={cn('h-6 flex items-center px-2', getNodeColor(data.type))}
+          className={cn(
+            'h-12 flex flex-col justify-center px-2',
+            getNodeColor(data.type)
+          )}
         >
-          {/* Icon and Name */}
-          <div className="flex items-center gap-1">
+          {/* Icon and Name - Line 1 */}
+          <div className="flex items-center gap-1 mb-1">
             {getNodeIcon(data.type)}
             <p className="text-[8px] font-medium text-white whitespace-nowrap leading-none">
               {data.name}
             </p>
           </div>
-        </div>
 
-        {/* Status Pill - Below Title */}
-        <div className="px-2 py-1 bg-background border-b border-border">
-          <div
-            className={cn(
-              'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5 w-fit',
-              getStatusPillColor(data.status)
-            )}
-          >
-            {getStatusIcon(data.status)}
-            {getStatusText(data.status)}
+          {/* Status Pill - Line 2 */}
+          <div className="flex justify-start">
+            <div
+              className={cn(
+                'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5 w-fit',
+                getStatusPillColor(data.status)
+              )}
+            >
+              {getStatusIcon(data.status)}
+              {getStatusText(data.status)}
+            </div>
           </div>
         </div>
 
@@ -142,20 +145,24 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
                 const isProvided =
                   data.data_requirements?.provided_fields.includes(field);
                 return (
-                  <div
-                    key={field}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-[8px] text-muted-foreground truncate max-w-20">
-                      {field}
-                    </span>
+                  <div key={field} className="flex items-center gap-1">
                     <div className="flex-shrink-0">
                       {isProvided ? (
-                        <Check className="w-3 h-3 text-green-500" />
+                        <Check className="w-2 h-2 text-green-500" />
                       ) : (
-                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                        <div className="w-2 h-2 rounded-full border border-gray-400" />
                       )}
                     </div>
+                    <span
+                      className={cn(
+                        'text-[8px] truncate max-w-20',
+                        isProvided
+                          ? 'text-gray-400 line-through'
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {field}
+                    </span>
                   </div>
                 );
               })
