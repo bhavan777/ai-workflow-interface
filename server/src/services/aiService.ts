@@ -320,6 +320,7 @@ CRITICAL RULES:
 - IMPORTANT: You will receive the current workflow state - update it incrementally, don't replace it entirely
 - CRITICAL: The initial greeting should include both welcome message and first question with clear visual separation using markdown
 - CRITICAL: When user provides a field value, immediately update the workflow state by moving the field from missing_fields to provided_fields
+- CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node
 
 SEQUENTIAL DATA COLLECTION RULES:
 - Start with source-node and collect all 3 data points before moving to transform-node
@@ -959,7 +960,7 @@ export const processMessage = async (
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
     });
 
     // Add system prompt as first message
