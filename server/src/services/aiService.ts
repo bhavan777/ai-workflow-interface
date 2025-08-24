@@ -124,17 +124,17 @@ export class GroqCloudClient {
     } = {}
   ): Promise<string> {
     const {
-      maxTokens = 4000,
+      maxTokens = 4000, // Restored for Dev Tier with higher limits
       temperature = 0.7,
       speed = 'balanced',
       cost = 'medium',
     } = options;
 
-    // Define available models in order of preference
+    // Define available models in order of preference - prioritize cheaper/faster models
     const availableModels = [
-      'llama3-70b-8192', // High quality, reliable for complex tasks
-      'llama3-8b-8192', // Fast, good for simple tasks
+      'llama3-8b-8192', // Fast, good for simple tasks, cheaper
       'gemma2-9b-it', // Alternative model for fallback
+      'llama3-70b-8192', // High quality, use only if needed
     ];
 
     let lastError: Error | null = null;
@@ -249,18 +249,12 @@ export interface DataFlowConnection {
   status: 'pending' | 'complete' | 'error';
 }
 
-const SYSTEM_PROMPT = `You are a data integration expert helping users build data pipelines through conversation.
+const SYSTEM_PROMPT = `You are a data integration expert. Respond with ONLY valid JSON.
 
-CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or after the JSON. No explanations. Just the JSON.
-
-CRITICAL WORKFLOW REQUIREMENTS:
-- ALWAYS create exactly 3 nodes: 1 source, 1 transform, 1 destination
-- ALWAYS include ALL 3 nodes in EVERY response, even if not being configured
-- NEVER omit any of the 3 nodes from the response
-- Each node must have unique IDs: "source-node", "transform-node", "destination-node"
-- CRITICAL: When updating nodes, only provide the fields that are changing or being added
-- CRITICAL: Do NOT recreate nodes from scratch - only update the specific fields that need to change
-- CRITICAL: Preserve existing node configuration and only add/update new information
+CRITICAL: Create exactly 3 nodes: source-node, transform-node, destination-node
+CRITICAL: Include ALL 3 nodes in EVERY response
+CRITICAL: Only update fields that are changing - preserve existing config
+CRITICAL: Do NOT recreate nodes from scratch
 
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
@@ -729,8 +723,9 @@ export const processMessage = async (
 
     sendThought?.('🤔 Let me think about your request...');
 
-    // Convert conversation history to AI format
-    const aiMessages = conversationHistory.map(msg => ({
+    // Convert conversation history to AI format - limit to last 5 messages to reduce tokens
+    const recentHistory = conversationHistory.slice(-5);
+    const aiMessages = recentHistory.map(msg => ({
       role: msg.role,
       content: formatMessageForAI(msg),
     }));
