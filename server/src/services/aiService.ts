@@ -325,12 +325,21 @@ CRITICAL RULES:
 - Update data_requirements.provided_fields with field names that have values
 - Update data_requirements.missing_fields with field names still needed
 - Never send sensitive data (API keys, passwords) over WebSocket
-- Only ask for one piece of data at a time
+- CRITICAL: Only ask for ONE data point at a time - never ask for multiple fields in one message
+- CRITICAL: Work on ONE node at a time - complete current node before moving to next
 - Progress automatically to next node when current node is complete
 - Be enthusiastic and proactive - user wants to move forward
 - Ask directly for what you need - no confirmations or permissions
 - Assume user is ready to provide information
 - IMPORTANT: You will receive the current workflow state - update it incrementally, don't replace it entirely
+
+SEQUENTIAL DATA COLLECTION RULES:
+- Start with source-node and collect all 3 data points before moving to transform-node
+- Only move to transform-node when source-node is complete (all 3 fields provided)
+- Only move to destination-node when transform-node is complete (all 3 fields provided)
+- For each node, ask for exactly ONE field at a time
+- Wait for user to provide the requested field before asking for the next one
+- Do not skip ahead or ask for multiple fields simultaneously
 
 SERVICE-SPECIFIC FIELD DETERMINATION:
 - For Shopify Source: use ["store_url", "api_key", "api_secret"]
@@ -357,7 +366,12 @@ STATE MANAGEMENT:
 - Update only the parts that have changed based on user input
 - Maintain the same node IDs, connection IDs, and overall structure
 - Preserve existing data_requirements.provided_fields and update missing_fields accordingly
-- Keep the same node names unless the user specifies a different service`;
+- Keep the same node names unless the user specifies a different service
+
+NODE PROGRESSION LOGIC:
+- source-node: pending → partial (1-2 fields) → complete (3 fields) → move to transform-node
+- transform-node: pending → partial (1-2 fields) → complete (3 fields) → move to destination-node  
+- destination-node: pending → partial (1-2 fields) → complete (3 fields) → workflow_complete = true`;
 
 // Helper function to generate unique IDs
 const generateId = (): string => {
@@ -594,6 +608,44 @@ const createInitialWorkflowState = (): {
   };
 };
 
+// Helper function to determine which node and field should be requested next
+const getNextDataPoint = (
+  nodes: DataFlowNode[]
+): { nodeId: string; fieldName: string; nodeName: string } | null => {
+  // Check nodes in order: source → transform → destination
+  const nodeOrder = ['source-node', 'transform-node', 'destination-node'];
+
+  for (const nodeId of nodeOrder) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) continue;
+
+    // If this node has missing fields, return the first missing field
+    if (
+      node.data_requirements &&
+      node.data_requirements.missing_fields.length > 0
+    ) {
+      return {
+        nodeId,
+        fieldName: node.data_requirements.missing_fields[0],
+        nodeName: node.name,
+      };
+    }
+  }
+
+  // All nodes are complete
+  return null;
+};
+
+// Helper function to check if a node is complete
+const isNodeComplete = (node: DataFlowNode): boolean => {
+  return node.data_requirements?.missing_fields.length === 0;
+};
+
+// Helper function to check if workflow is complete
+const isWorkflowComplete = (nodes: DataFlowNode[]): boolean => {
+  return nodes.every(node => isNodeComplete(node));
+};
+
 export const processMessage = async (
   conversationHistory: Message[],
   currentMessage: Message,
@@ -678,10 +730,16 @@ export const processMessage = async (
       content: formatMessageForAI(currentMessage),
     });
 
+    // Determine the next data point that should be requested
+    const nextDataPoint = getNextDataPoint(existingWorkflowState.nodes || []);
+    const nextDataPointInfo = nextDataPoint
+      ? `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
+      : '\n\nWORKFLOW STATUS: All data points collected. Workflow is complete.';
+
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed.`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${nextDataPointInfo}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time.`,
     });
 
     // Add system prompt as first message
@@ -876,6 +934,9 @@ export const processMessage = async (
     const updatedConnections =
       parsed.connections || existingWorkflowState.connections;
 
+    // Check if workflow is complete based on all nodes being complete
+    const workflowComplete = isWorkflowComplete(updatedNodes || []);
+
     // Convert AI response back to our message format
     const response: Message = {
       id: generateId(),
@@ -890,10 +951,8 @@ export const processMessage = async (
     response.nodes = updatedNodes;
     response.connections = updatedConnections;
 
-    // Include workflow completion status
-    if (parsed.workflow_complete !== undefined) {
-      response.workflow_complete = parsed.workflow_complete;
-    }
+    // Set workflow completion status
+    response.workflow_complete = workflowComplete;
 
     return response;
   } catch (error: any) {
@@ -943,4 +1002,11 @@ export const clearAllConversations = (): void => {
 };
 
 // Export helper functions for testing
-export { createInitialWorkflowState, ensureAllNodesPresent, mergeNodesData };
+export {
+  createInitialWorkflowState,
+  ensureAllNodesPresent,
+  getNextDataPoint,
+  isNodeComplete,
+  isWorkflowComplete,
+  mergeNodesData,
+};
