@@ -2,6 +2,7 @@ import { useChat } from '@/hooks/useChat';
 import type { Message as MessageType } from '@/types';
 import Message from './Message';
 import Thought from './Thought';
+import { useEffect, useRef } from 'react';
 
 interface MessagesProps {
   messages: MessageType[];
@@ -15,6 +16,17 @@ export default function Messages({
   onRetry,
 }: MessagesProps) {
   const { currentThought } = useChat();
+  const scrollMarkerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollMarkerRef.current) {
+      scrollMarkerRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
+  }, [messages, currentThought]);
 
   // Filter out THOUGHT and STATUS messages since they're handled separately
   const displayMessages = messages.filter(
@@ -57,6 +69,9 @@ export default function Messages({
           </div>
         </div>
       )}
+
+      {/* Scroll marker for auto-scrolling */}
+      <div ref={scrollMarkerRef} className="h-0" />
     </div>
   );
 }
