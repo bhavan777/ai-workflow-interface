@@ -126,7 +126,23 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     );
 
     // Get conversation history for this session
-    const conversationHistory = getConversationHistory(conversationId) || [];
+    let conversationHistory = getConversationHistory(conversationId) || [];
+    
+    // If this is a new workflow request (first message or workflow-related), clear history
+    const isNewWorkflow = conversationHistory.length === 0 || 
+                         message.content.toLowerCase().includes('shopify') ||
+                         message.content.toLowerCase().includes('snowflake') ||
+                         message.content.toLowerCase().includes('connect') ||
+                         message.content.toLowerCase().includes('pipeline') ||
+                         message.content.toLowerCase().includes('workflow');
+    
+    if (isNewWorkflow && conversationHistory.length > 0) {
+      console.log('🔄 Starting new workflow - clearing conversation history');
+      conversationHistory = [];
+      // Clear the saved conversation
+      saveConversation(conversationId, []);
+    }
+    
     console.log(
       `📚 Loaded conversation history (${conversationHistory.length} messages) for conversation: ${conversationId}`
     );
