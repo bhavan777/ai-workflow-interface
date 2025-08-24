@@ -258,6 +258,9 @@ CRITICAL WORKFLOW REQUIREMENTS:
 - ALWAYS include ALL 3 nodes in EVERY response, even if not being configured
 - NEVER omit any of the 3 nodes from the response
 - Each node must have unique IDs: "source-node", "transform-node", "destination-node"
+- CRITICAL: When updating nodes, only provide the fields that are changing or being added
+- CRITICAL: Do NOT recreate nodes from scratch - only update the specific fields that need to change
+- CRITICAL: Preserve existing node configuration and only add/update new information
 
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
@@ -379,35 +382,41 @@ RULES:
 1. ALWAYS respond with ONLY valid JSON - no other text
 2. ALWAYS ask only ONE question at a time
 3. CRITICAL: Follow EXACT order: source → transform → destination (never skip or change order)
-4. Update node status: "pending" → "partial" → "complete" based on provided info
-5. ALWAYS update node config with each piece of information provided
-6. Thank user for each piece of information provided
-7. Ask the next single question needed with a clear example
-8. Set node status to "complete" when all required fields for that node are provided
-9. ALWAYS include data_requirements for each node with:
-   - required_fields: Array of all fields needed for this node type
-   - provided_fields: Array of fields that have been provided
-   - missing_fields: Array of fields still needed (required_fields - provided_fields)
-10. Update data_requirements whenever user provides new information
-11. A node is "complete" when missing_fields is empty
-12. A node is "partial" when some but not all required fields are provided
-13. A node is "pending" when no required fields are provided
-14. CRITICAL: ALWAYS include ALL 3 nodes (source-node, transform-node, destination-node) in EVERY response
-15. CRITICAL: NEVER omit any of the 3 nodes, even if they are not being configured yet
-16. CRITICAL: If a node is not being configured, keep it with "pending" status and empty config
-17. When all nodes are "complete", set "workflow_complete": true and provide success message
-18. NEVER ask for information that has already been provided
-19. ALWAYS check conversation history to see what information is already available
-20. If user provides information for a different step, acknowledge it and continue with the current step
-21. If user asks about options, provide them clearly and ask for their choice
-22. ACCEPT ALL user input - NO VALIDATION - assume everything provided is correct
-23. ALWAYS provide a clear example in each question (e.g., "What's your database name? For example: my_shopify_db")
-24. Be flexible with input formats - accept variations and common formats
-25. DYNAMICALLY determine source and destination based on user's request
-26. Ask relevant questions for the specific source/destination combination
-27. ALWAYS include the current node configuration in your response
-28. CRITICAL: Maximum 3 questions per node - if more fields needed, prioritize the most important 3
-29. NEVER validate user input - accept whatever they provide as correct
+4. CRITICAL: Complete ALL questions for ONE node before moving to the next node
+5. Update node status: "pending" → "partial" → "complete" based on provided info
+6. ALWAYS update node config with each piece of information provided
+7. Thank user for each piece of information provided
+8. Ask the next single question needed with a clear example
+9. Set node status to "complete" when all required fields for that node are provided
+10. ALWAYS include data_requirements for each node with:
+    - required_fields: Array of all fields needed for this node type
+    - provided_fields: Array of fields that have been provided
+    - missing_fields: Array of fields still needed (required_fields - provided_fields)
+11. Update data_requirements whenever user provides new information
+12. CRITICAL: NODE PERSISTENCE - Only provide fields that are changing or being added to existing nodes
+13. CRITICAL: Do NOT recreate nodes from scratch - preserve existing configuration
+14. CRITICAL: When updating a node, only include the specific fields being updated (name, status, config, data_requirements)
+15. CRITICAL: For nodes not being updated, include only the essential fields (id, type, name, status) to maintain structure
+12. A node is "complete" when missing_fields is empty
+13. A node is "partial" when some but not all required fields are provided
+14. A node is "pending" when no required fields are provided
+15. CRITICAL: ALWAYS include ALL 3 nodes (source-node, transform-node, destination-node) in EVERY response
+16. CRITICAL: NEVER omit any of the 3 nodes, even if they are not being configured yet
+17. CRITICAL: If a node is not being configured, keep it with "pending" status and empty config
+18. When all nodes are "complete", set "workflow_complete": true and provide success message
+19. NEVER ask for information that has already been provided
+20. ALWAYS check conversation history to see what information is already available
+21. If user provides information for a different step, acknowledge it and continue with the current step
+22. If user asks about options, provide them clearly and ask for their choice
+23. ACCEPT ALL user input - NO VALIDATION - assume everything provided is correct
+24. ALWAYS provide a clear example in each question (e.g., "What's your database name? For example: my_shopify_db")
+25. Be flexible with input formats - accept variations and common formats
+26. DYNAMICALLY determine source and destination based on user's request
+27. Ask relevant questions for the specific source/destination combination
+28. ALWAYS include the current node configuration in your response
+29. CRITICAL: Maximum 3 questions per node - if more fields needed, prioritize the most important 3
+30. NEVER validate user input - accept whatever they provide as correct
+31. CRITICAL: Only move to next node when current node is "complete" (all required fields provided)
 
 NO VALIDATION RULES:
 - ACCEPT ALL user input without any validation
@@ -460,9 +469,13 @@ CONVERSATION FLOW EXAMPLES:
 - User: "myuser@company.com"
 - Assistant: {"message": "Thank you! Now I need your Salesforce password or access token. For example: mypassword123 or 00D...", "nodes": [{"id": "source-node", "type": "source", "name": "Salesforce Source", "status": "partial", "config": {"instance_url": "https://mydomain.my.salesforce.com", "username": "myuser@company.com"}}], "connections": [...], "workflow_complete": false}
 
-**Shopify to HubSpot Example:**
+**Shopify to HubSpot Example (Node-by-Node Flow with Persistence):**
 - User: "I want to connect Shopify to HubSpot"
-- Assistant: {"message": "Great! Let's set up your Shopify to HubSpot pipeline. What is your Shopify store URL? For example: https://mystore.myshopify.com", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
+- Assistant: {"message": "Great! Let's set up your Shopify to HubSpot pipeline. What is your Shopify store URL? For example: https://mystore.myshopify.com", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "pending", "config": {}, "data_requirements": {"required_fields": ["store_url", "api_key"], "provided_fields": [], "missing_fields": ["store_url", "api_key"]}}, {"id": "transform-node", "type": "transform", "name": "Data Transform", "status": "pending", "config": {}}, {"id": "destination-node", "type": "destination", "name": "HubSpot Destination", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
+- User: "https://mystore.myshopify.com"
+- Assistant: {"message": "Thank you! Now I need your Shopify API key. For example: shpat_1234567890abcdef", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "partial", "config": {"store_url": "https://mystore.myshopify.com"}, "data_requirements": {"required_fields": ["store_url", "api_key"], "provided_fields": ["store_url"], "missing_fields": ["api_key"]}}, {"id": "transform-node", "type": "transform", "name": "Data Transform", "status": "pending", "config": {}}, {"id": "destination-node", "type": "destination", "name": "HubSpot Destination", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
+- User: "shpat_1234567890abcdef"
+- Assistant: {"message": "Perfect! Your Shopify source is now complete. Now let's configure the transform node. What type of data transformation do you need? For example: filter, aggregate, or map", "nodes": [{"id": "source-node", "type": "source", "name": "Shopify Source", "status": "complete", "config": {"store_url": "https://mystore.myshopify.com", "api_key": "shpat_1234567890abcdef"}, "data_requirements": {"required_fields": ["store_url", "api_key"], "provided_fields": ["store_url", "api_key"], "missing_fields": []}}, {"id": "transform-node", "type": "transform", "name": "Data Transform", "status": "pending", "config": {}, "data_requirements": {"required_fields": ["operation_type"], "provided_fields": [], "missing_fields": ["operation_type"]}}, {"id": "destination-node", "type": "destination", "name": "HubSpot Destination", "status": "pending", "config": {}}], "connections": [...], "workflow_complete": false}
 
 QUESTION EXAMPLES:
 - Always include "For example:" in questions to guide users
@@ -472,6 +485,13 @@ QUESTION EXAMPLES:
 - URL: "What's your instance URL? For example: https://yourcompany.my.salesforce.com"
 
 IMPORTANT: Always check the conversation history to see what information has already been provided. Do not ask for the same information twice. ALWAYS update the node configuration with each piece of information provided.
+
+CRITICAL NODE PERSISTENCE: 
+- When updating nodes, only provide the fields that are changing or being added
+- Do NOT recreate nodes from scratch - preserve existing configuration
+- For nodes not being updated, include only essential fields (id, type, name, status)
+- The system will automatically merge your updates with existing node data
+- Always include all 3 nodes in every response to maintain structure
 
 CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
 
@@ -555,6 +575,50 @@ const getCurrentWorkflowState = (
   return {};
 };
 
+// Helper function to merge new node data with existing nodes
+const mergeNodesData = (
+  existingNodes: DataFlowNode[],
+  newNodes: DataFlowNode[]
+): DataFlowNode[] => {
+  const mergedNodes: DataFlowNode[] = [];
+
+  // Create a map of existing nodes by ID for quick lookup
+  const existingNodesMap = new Map<string, DataFlowNode>();
+  existingNodes.forEach(node => existingNodesMap.set(node.id, node));
+
+  // Process each new node
+  newNodes.forEach(newNode => {
+    const existingNode = existingNodesMap.get(newNode.id);
+
+    if (existingNode) {
+      // Merge with existing node - preserve existing config and update with new data
+      const mergedNode: DataFlowNode = {
+        ...existingNode,
+        name: newNode.name || existingNode.name,
+        status: newNode.status || existingNode.status,
+        // Merge config objects, preferring new values but keeping existing ones
+        config: {
+          ...existingNode.config,
+          ...newNode.config,
+        },
+        // Update data requirements with new information
+        data_requirements:
+          newNode.data_requirements || existingNode.data_requirements,
+        // Keep existing position if available
+        position: existingNode.position || newNode.position,
+      };
+
+      mergedNodes.push(mergedNode);
+    } else {
+      // New node, add as is
+      mergedNodes.push(newNode);
+    }
+  });
+
+  // Ensure all required nodes are present
+  return ensureAllNodesPresent(mergedNodes);
+};
+
 // Helper function to check if workflow state has changed
 const hasWorkflowStateChanged = (
   currentState: { nodes?: DataFlowNode[]; connections?: DataFlowConnection[] },
@@ -565,13 +629,29 @@ const hasWorkflowStateChanged = (
     return !!(newResponse.nodes || newResponse.connections);
   }
 
-  // Compare nodes
-  if (newResponse.nodes) {
-    if (
-      !currentState.nodes ||
-      JSON.stringify(currentState.nodes) !== JSON.stringify(newResponse.nodes)
+  // Compare nodes - check for meaningful changes
+  if (newResponse.nodes && currentState.nodes) {
+    // Check if any node status, config, or data_requirements have changed
+    for (
+      let i = 0;
+      i < Math.min(currentState.nodes.length, newResponse.nodes.length);
+      i++
     ) {
-      return true;
+      const currentNode = currentState.nodes[i];
+      const newNode = newResponse.nodes[i];
+
+      if (currentNode.id === newNode.id) {
+        // Check for meaningful changes
+        if (
+          currentNode.status !== newNode.status ||
+          JSON.stringify(currentNode.config) !==
+            JSON.stringify(newNode.config) ||
+          JSON.stringify(currentNode.data_requirements) !==
+            JSON.stringify(newNode.data_requirements)
+        ) {
+          return true;
+        }
+      }
     }
   }
 
@@ -817,19 +897,44 @@ export const processMessage = async (
       throw new Error('Invalid response structure - missing message');
     }
 
-    // Ensure all 3 nodes are always present
+    // Get current workflow state from conversation history
+    const currentState = getCurrentWorkflowState(conversationHistory);
+    console.log(
+      '🔍 Current workflow state found:',
+      currentState.nodes ? `${currentState.nodes.length} nodes` : 'no nodes'
+    );
+
+    // Merge new nodes with existing nodes to maintain persistence
     if (parsed.nodes && Array.isArray(parsed.nodes)) {
-      parsed.nodes = ensureAllNodesPresent(parsed.nodes);
+      if (currentState.nodes && currentState.nodes.length > 0) {
+        // Merge with existing nodes to maintain configuration
+        console.log('🔄 Merging new nodes with existing nodes...');
+        console.log(
+          '📋 Existing nodes:',
+          currentState.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
+        );
+        console.log(
+          '📋 New nodes from AI:',
+          parsed.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
+        );
+
+        parsed.nodes = mergeNodesData(currentState.nodes, parsed.nodes);
+        console.log(
+          '🔄 Merged new nodes with existing nodes to maintain persistence'
+        );
+      } else {
+        // First time creating nodes, ensure all 3 are present
+        parsed.nodes = ensureAllNodesPresent(parsed.nodes);
+        console.log('🆕 Created initial nodes structure');
+      }
+
       console.log(
-        '✅ Ensured all 3 nodes are present:',
-        parsed.nodes.map((n: DataFlowNode) => n.id)
+        '✅ Final nodes structure:',
+        parsed.nodes.map((n: DataFlowNode) => `${n.id} (${n.status})`)
       );
     }
 
     sendThought?.('✨ Perfect! I have what you need.');
-
-    // Get current workflow state from conversation history
-    const currentState = getCurrentWorkflowState(conversationHistory);
 
     // Check if workflow state has changed
     const hasStateChange = hasWorkflowStateChanged(currentState, parsed);
@@ -844,10 +949,13 @@ export const processMessage = async (
       timestamp: new Date().toISOString(),
     };
 
-    // Only include nodes and connections if state changed
-    if (hasStateChange) {
-      response.nodes = parsed.nodes || [];
-      response.connections = parsed.connections || [];
+    // Always include nodes and connections to maintain persistence
+    // The frontend will receive the complete updated state
+    if (parsed.nodes) {
+      response.nodes = parsed.nodes;
+    }
+    if (parsed.connections) {
+      response.connections = parsed.connections;
     }
 
     // Include workflow completion status
