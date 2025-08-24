@@ -218,6 +218,7 @@ export interface Message {
   type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
   content: string; // Main message content (or thought content)
   timestamp: string; // ISO timestamp
+  message_type?: 'text' | 'markdown'; // Type of message content
 
   // For assistant MESSAGE responses - only include if workflow state changed
   nodes?: DataFlowNode[];
@@ -256,6 +257,14 @@ CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or afte
 WORKFLOW: 3 nodes (Source → Transform → Destination). Each needs 3 data points.
 
 TONE: Enthusiastic, professional, proactive, and graceful. User wants to move forward - guide them smoothly through the process.
+
+MESSAGE FORMATTING: Use markdown formatting in your messages to make them beautiful and well-structured. Use:
+- **Bold** for emphasis and important information
+- *Italic* for subtle emphasis
+- \`code\` for field names, examples, and technical terms
+- > Blockquotes for examples and sample data
+- Bullet points for lists
+- Proper spacing and line breaks for readability
 
 SERVICE VALIDATION: You can work with any valid data source/destination services based on your knowledge. Determine if services mentioned are valid for data transformation.
 
@@ -342,13 +351,14 @@ SEQUENTIAL DATA COLLECTION RULES:
 - Do not skip ahead or ask for multiple fields simultaneously
 
 NODE TRANSITION MESSAGES:
-- When starting a workflow (very first interaction): "Welcome! I'll help you create a data pipeline from [source] to [destination]. I'll collect configuration information step by step, starting with your [source] details. Let's begin with [first field]. For example: [sample example]"
-- When starting a new node (first field of that node): "Perfect! Now I'll collect information related to [node type] configuration. Let's start with [first field]. For example: [sample example]"
-- When completing a node (last field of that node): "Excellent! [Node type] configuration is now complete. Let's move on to [next node type] configuration."
+- CRITICAL: When starting a workflow (very first interaction), you MUST start with: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`[source]\`** to **\`[destination]\`**. I'll collect configuration information step by step, starting with your **\`[source]\`** details.\n\nLet's begin with **\`[first field]\`**:\n> **Example:** \`[sample example]\`"
+- When starting a new node (first field of that node): "**Perfect!** ✨ Now I'll collect information related to **\`[node type]\`** configuration.\n\nLet's start with **\`[first field]\`**:\n> **Example:** \`[sample example]\`"
+- When completing a node (last field of that node): "**Excellent!** 🎯 **\`[node type]\`** configuration is now complete.\n\nLet's move on to **\`[next node type]\`** configuration."
 - Be graceful and informative about transitions between nodes
 - Acknowledge completion of each node before moving to the next
 - ALWAYS provide a sample example when asking for data input from the user
-- Provide a warm, welcoming greeting when starting a new workflow
+- CRITICAL: ALWAYS provide a warm, welcoming greeting when starting a new workflow - this is mandatory
+- Use markdown formatting for beautiful, structured messages
 
 SERVICE-SPECIFIC FIELD DETERMINATION:
 - For Shopify Source: use ["store_url", "api_key", "api_secret"]
@@ -916,20 +926,32 @@ export const processMessage = async (
       nextDataPoint
     );
 
+    // Debug logging for workflow greeting
+    console.log('🔍 Workflow greeting debug:');
+    console.log('  - Is starting workflow:', isStartingWorkflowNow);
+    console.log('  - Is starting node:', isStartingNode);
+    console.log('  - Is completing node:', isCompletingCurrentNode);
+    console.log(
+      '  - Next data point:',
+      nextDataPoint
+        ? `${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
+        : 'None'
+    );
+
     let transitionInfo = '';
     if (nextDataPoint) {
       const nodeType = getCurrentNodeType(nextDataPoint.nodeId);
       const fieldExample = getFieldExample(nextDataPoint.fieldName, nodeType);
 
       if (isStartingWorkflowNow) {
-        transitionInfo = `\n\nWORKFLOW GREETING: Welcome! I'll help you create a data pipeline from ${nodeType} to destination. I'll collect configuration information step by step, starting with your ${nodeType} details. Let's begin with ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+        transitionInfo = `\n\nWORKFLOW GREETING: CRITICAL - You MUST start your response with a welcoming greeting using markdown formatting. Say: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`${nodeType}\`** to **\`destination\`**. I'll collect configuration information step by step, starting with your **\`${nodeType}\`** details.\n\nLet's begin with **\`${nextDataPoint.fieldName}\`**:\n> **Example:** \`${fieldExample}\`"`;
       } else if (isStartingNode) {
-        transitionInfo = `\n\nNODE TRANSITION: Starting ${nodeType} configuration. Request: ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+        transitionInfo = `\n\nNODE TRANSITION: Starting ${nodeType} configuration with markdown formatting. Request: **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\``;
       } else if (isCompletingCurrentNode) {
         const nextNodeType = getNextNodeType(nextDataPoint.nodeId);
-        transitionInfo = `\n\nNODE TRANSITION: Completing ${nodeType} configuration. Request: ${nextDataPoint.fieldName}. Example: ${fieldExample}. After this field, move to ${nextNodeType} configuration.`;
+        transitionInfo = `\n\nNODE TRANSITION: Completing ${nodeType} configuration with markdown formatting. Request: **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\`. After this field, move to ${nextNodeType} configuration.`;
       } else {
-        transitionInfo = `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}. Example: ${fieldExample}`;
+        transitionInfo = `\n\nNEXT DATA POINT TO REQUEST: ${nextDataPoint.nodeName} - **\`${nextDataPoint.fieldName}\`**. Example: \`${fieldExample}\``;
       }
     } else {
       transitionInfo =
@@ -939,7 +961,7 @@ export const processMessage = async (
     // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
     aiMessages.push({
       role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes.`,
+      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nUpdate this state based on the user's latest input. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting.`,
     });
 
     // Add system prompt as first message
@@ -1144,6 +1166,7 @@ export const processMessage = async (
       role: 'assistant',
       type: 'MESSAGE',
       content: parsed.message,
+      message_type: 'markdown', // AI messages are formatted with markdown
       timestamp: new Date().toISOString(),
     };
 
