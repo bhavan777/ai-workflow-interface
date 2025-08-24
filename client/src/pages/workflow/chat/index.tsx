@@ -1,29 +1,24 @@
 import { useChat } from '@/hooks/useChat';
-import type { Message } from '@/store/types';
 import { useState } from 'react';
 import ChatInput from './ChatInput';
 import Messages from './Messages';
-import ThoughtsPanel from './ThoughtsPanel';
 import WorkflowSetup from './WorkflowSetup';
 
 interface ChatProps {
-  conversationId: string | undefined;
-  isLoading: boolean;
-  thoughts: Message[];
   onStartConversation: (description: string) => Promise<void>;
-  onContinueConversation: (answer: string) => void;
+  onSendMessage: (content: string) => void;
 }
 
 export default function Chat({
-  conversationId,
-  isLoading,
-  thoughts,
   onStartConversation,
-  onContinueConversation,
+  onSendMessage,
 }: ChatProps) {
-  const { messages } = useChat();
+  const { messages, isLoading } = useChat();
   const [description, setDescription] = useState('');
   const [inputValue, setInputValue] = useState('');
+
+  // Check if conversation has started (has any messages)
+  const hasStarted = messages.length > 0;
 
   const handleStartConversation = async () => {
     if (!description.trim()) return;
@@ -32,12 +27,12 @@ export default function Chat({
 
   const handleSubmit = () => {
     if (!inputValue.trim()) return;
-    onContinueConversation(inputValue);
+    onSendMessage(inputValue);
     setInputValue('');
   };
 
   // If no conversation has started, show the workflow setup
-  if (!conversationId) {
+  if (!hasStarted) {
     return (
       <div className="w-1/2 border-r border-border bg-background/50">
         <WorkflowSetup
@@ -55,18 +50,10 @@ export default function Chat({
       {/* Messages - takes up most of the space */}
       <Messages messages={messages} />
 
-      {/* Thoughts Panel - shows when there are thoughts */}
-      {thoughts.length > 0 && (
-        <div className="border-t border-border">
-          <ThoughtsPanel thoughts={thoughts} />
-        </div>
-      )}
-
       {/* Chat Input - fixed at bottom */}
       <ChatInput
         inputValue={inputValue}
         isLoading={isLoading}
-        conversationId={conversationId}
         onInputChange={setInputValue}
         onSubmit={handleSubmit}
       />

@@ -1,18 +1,27 @@
-import type { ChatState, Message } from '@/store/types';
-import type { DataFlowConnection, DataFlowNode, Question } from '@/types';
+import type { DataFlowConnection, DataFlowNode, Message } from '@/types';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+
+interface ChatState {
+  messages: Message[];
+  isLoading: boolean;
+  error: string | null;
+  currentWorkflow: {
+    nodes: DataFlowNode[];
+    connections: DataFlowConnection[];
+  };
+  currentThought: string | null; // Server-sent only, read-only
+}
 
 const initialState: ChatState = {
   messages: [],
   isLoading: false,
   error: null,
-  currentNodes: [],
-  currentConnections: [],
-  currentQuestions: [],
-  isWorkflowComplete: false,
-  thoughts: [],
-  pendingMessage: null, // Store message from home page
+  currentWorkflow: {
+    nodes: [],
+    connections: [],
+  },
+  currentThought: null,
 };
 
 const chatSlice = createSlice({
@@ -20,74 +29,46 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     addMessage: (state, action: PayloadAction<Message>) => {
-      state.messages.push(action.payload);
-    },
-    updateMessageStatus: (
-      state,
-      action: PayloadAction<{ id: string; status: Message['status'] }>
-    ) => {
-      const message = state.messages.find(msg => msg.id === action.payload.id);
-      if (message) {
-        message.status = action.payload.status;
+      // Only add non-thought messages to the messages array
+      if (action.payload.type !== 'THOUGHT') {
+        state.messages.push(action.payload);
+      }
+
+      // Update workflow state if message contains nodes/connections
+      if (action.payload.nodes && action.payload.connections) {
+        state.currentWorkflow.nodes = action.payload.nodes;
+        state.currentWorkflow.connections = action.payload.connections;
       }
     },
+
+    setCurrentThought: (state, action: PayloadAction<string | null>) => {
+      // Server-sent only, read-only
+      state.currentThought = action.payload;
+    },
+
     clearMessages: state => {
       state.messages = [];
-      state.currentNodes = [];
-      state.currentConnections = [];
-      state.currentQuestions = [];
-      state.isWorkflowComplete = false;
-      state.thoughts = [];
+      state.currentWorkflow.nodes = [];
+      state.currentWorkflow.connections = [];
+      state.currentThought = null;
     },
 
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
-    updateCurrentWorkflow: (
-      state,
-      action: PayloadAction<{
-        nodes: DataFlowNode[];
-        connections: DataFlowConnection[];
-        questions: Question[];
-        isComplete: boolean;
-      }>
-    ) => {
-      state.currentNodes = action.payload.nodes;
-      state.currentConnections = action.payload.connections;
-      state.currentQuestions = action.payload.questions;
-      state.isWorkflowComplete = action.payload.isComplete;
-    },
-    addThought: (
-      state,
-      action: PayloadAction<{ messageId: string; thought: string }>
-    ) => {
-      const thoughtMessage: Message = {
-        id: `thought-${Date.now()}`,
-        content: action.payload.thought,
-        role: 'thought',
-        timestamp: new Date(),
-        status: 'sent',
-      };
-      state.thoughts.push(thoughtMessage);
-    },
-    clearThoughts: state => {
-      state.thoughts = [];
-    },
-    setPendingMessage: (state, action: PayloadAction<string | null>) => {
-      state.pendingMessage = action.payload;
+
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
   },
 });
 
 export const {
   addMessage,
-  updateMessageStatus,
+  setCurrentThought,
   clearMessages,
   setError,
-  updateCurrentWorkflow,
-  addThought,
-  clearThoughts,
-  setPendingMessage,
+  setLoading,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

@@ -1,12 +1,15 @@
 import { cn } from '@/lib/utils';
-import type { DataFlowResponse } from '@/types';
+import type { DataFlowConnection, DataFlowNode } from '@/types';
 import { ArrowRight, Brain, Database, Settings, Zap } from 'lucide-react';
 
 interface CanvasProps {
-  currentResponse: DataFlowResponse | null;
+  currentWorkflow: {
+    nodes: DataFlowNode[];
+    connections: DataFlowConnection[];
+  };
 }
 
-export default function Canvas({ currentResponse }: CanvasProps) {
+export default function Canvas({ currentWorkflow }: CanvasProps) {
   const getNodeIcon = (type: string) => {
     switch (type) {
       case 'source':
@@ -33,10 +36,14 @@ export default function Canvas({ currentResponse }: CanvasProps) {
     }
   };
 
+  const isComplete = currentWorkflow.nodes.every(
+    node => node.status === 'complete'
+  );
+
   return (
     <div className="w-1/2 bg-background/30">
       <div className="p-6 h-full">
-        {currentResponse ? (
+        {currentWorkflow.nodes.length > 0 ? (
           <div className="h-full flex flex-col">
             {/* Workflow Status */}
             <div className="flex items-center justify-between mb-6">
@@ -46,18 +53,18 @@ export default function Canvas({ currentResponse }: CanvasProps) {
               <div
                 className={cn(
                   'px-3 py-1 rounded-full text-sm font-medium',
-                  currentResponse.isComplete
+                  isComplete
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                     : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                 )}
               >
-                {currentResponse.isComplete ? 'Complete' : 'In Progress'}
+                {isComplete ? 'Complete' : 'In Progress'}
               </div>
             </div>
 
             {/* Nodes Grid */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {currentResponse.nodes.map((node, index) => (
+              {currentWorkflow.nodes.map((node, index) => (
                 <div key={node.id} className="relative">
                   <div className="card p-4 hover:shadow-md transition-shadow duration-200 h-full">
                     <div className="flex items-center space-x-3 mb-3">
@@ -79,10 +86,27 @@ export default function Canvas({ currentResponse }: CanvasProps) {
                     >
                       {node.status}
                     </div>
+
+                    {/* Show configuration if available */}
+                    {node.config && Object.keys(node.config).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Configuration:
+                        </p>
+                        <div className="space-y-1">
+                          {Object.entries(node.config).map(([key, value]) => (
+                            <div key={key} className="text-xs">
+                              <span className="font-medium">{key}:</span>{' '}
+                              {String(value)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Connection Arrow */}
-                  {index < currentResponse.nodes.length - 1 && (
+                  {index < currentWorkflow.nodes.length - 1 && (
                     <div className="hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 z-10">
                       <ArrowRight className="w-6 h-6 text-muted-foreground" />
                     </div>
@@ -91,14 +115,21 @@ export default function Canvas({ currentResponse }: CanvasProps) {
               ))}
             </div>
 
-            {/* AI Message */}
+            {/* Workflow Info */}
             <div className="bg-muted rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <Brain className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-foreground">{currentResponse.message}</p>
+                  <h3 className="font-medium text-foreground mb-2">
+                    Workflow Progress
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {isComplete
+                      ? 'All nodes are configured and ready to use!'
+                      : 'Configure each node by answering the questions in the chat.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -106,14 +137,12 @@ export default function Canvas({ currentResponse }: CanvasProps) {
         ) : (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Brain className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Start Your Workflow
+              <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                No Workflow Yet
               </h3>
-              <p className="text-muted-foreground">
-                Describe your data workflow in the chat panel to begin
+              <p className="text-sm text-muted-foreground">
+                Start a conversation to see your workflow here.
               </p>
             </div>
           </div>

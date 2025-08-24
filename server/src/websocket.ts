@@ -13,6 +13,13 @@ const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
+// Helper function to generate conversation ID
+const generateConversationId = (): string => {
+  return (
+    'conv_' + Date.now().toString(36) + Math.random().toString(36).substr(2)
+  );
+};
+
 export interface Message {
   id: string; // Unique message ID
   response_to?: string; // ID of message this responds to (for conversation threading)
@@ -45,6 +52,9 @@ export interface DataFlowConnection {
   status: 'pending' | 'complete' | 'error';
 }
 
+// Store conversation IDs for each WebSocket connection
+const conversationIds = new WeakMap<WebSocket, string>();
+
 export const handleWebSocketConnection = (ws: WebSocket) => {
   console.log('🔌 New WebSocket connection established');
 
@@ -70,6 +80,8 @@ export const handleWebSocketConnection = (ws: WebSocket) => {
 
   ws.on('close', () => {
     console.log('🔌 WebSocket connection closed');
+    // Clean up conversation ID when connection closes
+    conversationIds.delete(ws);
   });
 
   ws.on('error', error => {
@@ -79,6 +91,14 @@ export const handleWebSocketConnection = (ws: WebSocket) => {
 
 const handleMessage = async (ws: WebSocket, message: Message) => {
   try {
+    // Get or create conversation ID for this WebSocket connection
+    let conversationId = conversationIds.get(ws);
+    if (!conversationId) {
+      conversationId = generateConversationId();
+      conversationIds.set(ws, conversationId);
+      console.log('🆔 Created new conversation ID:', conversationId);
+    }
+
     // Send processing status (no nodes/connections needed)
     ws.send(
       JSON.stringify({
@@ -106,7 +126,10 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     );
 
     // Get conversation history for this session
-    const conversationHistory = getConversationHistory(message.id) || [];
+    const conversationHistory = getConversationHistory(conversationId) || [];
+    console.log(
+      `📚 Loaded conversation history (${conversationHistory.length} messages) for conversation: ${conversationId}`
+    );
 
     // Process the message
     const response = await processMessage(
@@ -131,7 +154,10 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
 
     // Save the conversation with both user message and assistant response
     const updatedConversation = [...conversationHistory, message, response];
-    saveConversation(message.id, updatedConversation);
+    saveConversation(conversationId, updatedConversation);
+    console.log(
+      `💾 Saved conversation (${updatedConversation.length} messages) for conversation: ${conversationId}`
+    );
 
     // Add final delay before sending result
     await delay(800);

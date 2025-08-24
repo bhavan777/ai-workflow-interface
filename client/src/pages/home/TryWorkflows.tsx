@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useChat } from '@/hooks/useChat';
 import { Brain, Cloud, Database, Send, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,19 +7,16 @@ import { useNavigate } from 'react-router-dom';
 export default function TryWorkflows() {
   const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
-  const { addUserMessage, startNewConversation, setMessageForWorkflow } =
-    useChat();
 
   const startWorkflowWithMessage = (message: string) => {
     if (!message.trim()) return;
 
-    // Add user message to store
-    addUserMessage(message);
-    // Set pending message for workflow page to handle
-    setMessageForWorkflow(message);
-    // Start conversation and get conversation ID for navigation
-    const conversationId = startNewConversation();
-    navigate(`/workflow/${conversationId}`);
+    // Navigate to workflow page - the workflow page will handle the message
+    navigate('/workflow', {
+      state: {
+        initialMessage: message,
+      },
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -31,7 +31,7 @@ function App() {
             }
           />
           <Route
-            path="/workflow/:conversationId"
+            path="/workflow"
             element={
               <Layout>
                 <Workflow />

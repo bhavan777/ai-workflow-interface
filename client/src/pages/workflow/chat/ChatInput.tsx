@@ -6,7 +6,6 @@ import React from 'react';
 interface ChatInputProps {
   inputValue: string;
   isLoading: boolean;
-  conversationId: string | undefined;
   onInputChange: (value: string) => void;
   onSubmit: () => void;
 }
@@ -14,7 +13,6 @@ interface ChatInputProps {
 export default function ChatInput({
   inputValue,
   isLoading,
-  conversationId,
   onInputChange,
   onSubmit,
 }: ChatInputProps) {
@@ -37,16 +35,16 @@ export default function ChatInput({
         <div className="relative">
           <Input
             type="text"
-            placeholder="Type your message..."
+            placeholder="Type your answer..."
             value={inputValue}
             onChange={e => onInputChange(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isLoading || !conversationId}
+            disabled={isLoading}
             className="w-full h-12 pr-12 rounded-lg border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
           />
           <Button
             type="submit"
-            disabled={!inputValue.trim() || isLoading || !conversationId}
+            disabled={!inputValue.trim() || isLoading}
             className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (

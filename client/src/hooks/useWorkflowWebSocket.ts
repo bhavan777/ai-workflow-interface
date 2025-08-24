@@ -1,14 +1,12 @@
-import type { WorkflowMessage } from '@/types';
+import type { Message } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseWorkflowWebSocketProps {
-  onMessage: (message: WorkflowMessage) => void;
-  onThought: (messageId: string, thought: string) => void;
+  onMessage: (message: Message) => void;
 }
 
 export const useWorkflowWebSocket = ({
   onMessage,
-  onThought,
 }: UseWorkflowWebSocketProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -43,17 +41,10 @@ export const useWorkflowWebSocket = ({
 
         ws.onmessage = event => {
           try {
-            const message: WorkflowMessage = JSON.parse(event.data);
+            const message: Message = JSON.parse(event.data);
             console.log('📨 WebSocket message received:', message);
 
-            if (message.type === 'thought') {
-              const thought = message.data?.message as string;
-              if (thought) {
-                onThought(message.id, thought);
-              }
-              return;
-            }
-
+            // All messages go through the same handler
             onMessage(message);
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
@@ -81,7 +72,7 @@ export const useWorkflowWebSocket = ({
         reject(error);
       }
     });
-  }, [onMessage, onThought]);
+  }, [onMessage]);
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -93,7 +84,7 @@ export const useWorkflowWebSocket = ({
   }, []);
 
   const sendMessage = useCallback(
-    (message: WorkflowMessage): void => {
+    (message: Message): void => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         console.log('🔌 WebSocket not connected, connecting...');
         connect()
@@ -117,14 +108,15 @@ export const useWorkflowWebSocket = ({
   );
 
   const sendUserMessage = useCallback(
-    (content: string, conversationId?: string): string => {
-      const messageId = conversationId || `conv_start_${Date.now()}`;
-      const message: WorkflowMessage = {
-        type: conversationId ? 'conversation_continue' : 'conversation_start',
+    (content: string, responseTo?: string): string => {
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const message: Message = {
         id: messageId,
-        data: conversationId
-          ? { conversationId, answer: content }
-          : { description: content },
+        role: 'user',
+        type: 'MESSAGE',
+        content,
+        timestamp: new Date().toISOString(),
+        ...(responseTo && { response_to: responseTo }),
       };
 
       sendMessage(message);

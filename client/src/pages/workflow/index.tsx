@@ -2,108 +2,74 @@ import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
 import { cn } from '@/lib/utils';
 import { useAppDispatch } from '@/store/hooks';
-import {
-  addMessage,
-  addThought,
-  updateMessageStatus,
-} from '@/store/slices/chatSlice';
-import type { Message } from '@/store/types';
-import type { DataFlowResponse } from '@/types';
+import { addMessage, setCurrentThought } from '@/store/slices/chatSlice';
+import type { Message } from '@/types';
 import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Canvas from './Canvas';
 import Chat from './chat';
 
 export default function Workflow() {
-  const { conversationId } = useParams<{ conversationId: string }>();
   const [isLoading, setIsLoading] = useState(false);
-  const [currentResponse, setCurrentResponse] =
-    useState<DataFlowResponse | null>(null);
   const dispatch = useAppDispatch();
   const hasInitialized = useRef(false);
+  const hasStartedConversation = useRef(false);
+  const location = useLocation();
 
-  const { messages, thoughts, pendingMessage, clearPendingMessage } = useChat();
+  const {
+    messages,
+    currentWorkflow,
+    currentThought,
+    addUserMessage,
+    setLoadingState,
+  } = useChat();
 
   // WebSocket handlers
-  const handleServerResponse = useCallback(
-    (message: any) => {
-      if (
-        message.type === 'conversation_start' ||
-        message.type === 'conversation_continue'
-      ) {
-        // Update user message status to sent
-        const userMessage = messages.find(
-          msg => msg.role === 'user' && msg.status === 'sending'
-        );
-        if (userMessage) {
-          dispatch(updateMessageStatus({ id: userMessage.id, status: 'sent' }));
-        }
+  const handleServerMessage = useCallback(
+    (message: Message) => {
+      console.log('📨 Received message:', message);
 
-        // Add assistant response with a small delay for better UX
-        if (message.data) {
-          const assistantMessage: Message = {
-            id: `assistant-${Date.now()}`,
-            content: message.data.message as string,
-            role: 'assistant',
-            timestamp: new Date(),
-            status: 'sent',
-            nodes: message.data.nodes as any,
-            connections: message.data.connections as any,
-            questions: message.data.questions as any,
-            isComplete: message.data.isComplete as boolean,
-          };
-          dispatch(addMessage(assistantMessage));
-        }
+      // Handle thoughts separately (server-sent only)
+      if (message.type === 'THOUGHT') {
+        dispatch(setCurrentThought(message.content));
+        return;
+      }
 
-        // Clear loading state
+      // Add non-thought messages to the store
+      dispatch(addMessage(message));
+
+      // Update loading state based on message type
+      if (message.type === 'STATUS') {
+        setIsLoading(message.status === 'processing');
+        setLoadingState(message.status === 'processing');
+      } else if (message.type === 'MESSAGE' && message.role === 'assistant') {
+        // Assistant message received, stop loading and clear thought
         setIsLoading(false);
-      } else if (message.type === 'error') {
-        console.error('Server error:', message.error);
-        // Update user message status to error
-        const userMessage = messages.find(
-          msg => msg.role === 'user' && msg.status === 'sending'
-        );
-        if (userMessage) {
-          dispatch(
-            updateMessageStatus({ id: userMessage.id, status: 'error' })
-          );
-        }
+        setLoadingState(false);
+        dispatch(setCurrentThought(null)); // Clear thought when assistant responds
+      } else if (message.type === 'ERROR') {
+        // Error received, stop loading and clear thought
         setIsLoading(false);
+        setLoadingState(false);
+        dispatch(setCurrentThought(null)); // Clear thought on error
       }
     },
-    [dispatch, messages, setIsLoading]
-  );
-
-  const handleThought = useCallback(
-    (messageId: string, thought: string) => {
-      dispatch(addThought({ messageId, thought }));
-    },
-    [dispatch]
+    [dispatch, setLoadingState]
   );
 
   // Initialize WebSocket
   const { connect, sendUserMessage } = useWorkflowWebSocket({
-    onMessage: handleServerResponse,
-    onThought: handleThought,
+    onMessage: handleServerMessage,
   });
 
-  // Connect to WebSocket and send pending message when component mounts
+  // Connect to WebSocket when component mounts
   useEffect(() => {
     if (hasInitialized.current) return;
 
     const initializeWebSocket = async () => {
       try {
         await connect();
-
-        // If there's a pending message, start the conversation
-        if (pendingMessage) {
-          setIsLoading(true);
-          // Start new conversation (don't pass conversationId for conversation_start)
-          sendUserMessage(pendingMessage);
-          clearPendingMessage();
-        }
-
         hasInitialized.current = true;
       } catch (error) {
         console.error('Failed to connect WebSocket:', error);
@@ -111,42 +77,54 @@ export default function Workflow() {
     };
 
     initializeWebSocket();
-  }, [pendingMessage]); // Only depend on pendingMessage changes
+  }, []);
 
-  // Update current response when chat state changes
+  // Handle initial message from navigation
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.nodes) {
-      setCurrentResponse({
-        message: lastMessage.content,
-        message_type: 'text',
-        nodes: lastMessage.nodes,
-        connections: lastMessage.connections || [],
-        questions: lastMessage.questions || [],
-        isComplete: lastMessage.isComplete || false,
-      });
+    const initialMessage = location.state?.initialMessage;
+
+    if (
+      initialMessage &&
+      hasInitialized.current &&
+      !hasStartedConversation.current
+    ) {
+      hasStartedConversation.current = true;
+      handleStartConversation(initialMessage);
     }
-  }, [messages]);
+  }, [location.state, hasInitialized.current]);
 
   const handleStartConversation = async (description: string) => {
     setIsLoading(true);
+    setLoadingState(true);
 
     try {
+      // Add user message to store
+      addUserMessage(description);
+
+      // Send message to server
       sendUserMessage(description);
     } catch (error) {
       console.error('Error starting conversation:', error);
       setIsLoading(false);
+      setLoadingState(false);
     }
   };
 
-  const handleContinueConversation = (answer: string) => {
-    if (!conversationId) {
-      console.error('No conversation ID available');
-      return;
-    }
-
+  const handleSendMessage = (content: string) => {
     setIsLoading(true);
-    sendUserMessage(answer, conversationId);
+    setLoadingState(true);
+
+    try {
+      // Add user message to store
+      addUserMessage(content);
+
+      // Send message to server
+      sendUserMessage(content);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setIsLoading(false);
+      setLoadingState(false);
+    }
   };
 
   return (
@@ -173,13 +151,10 @@ export default function Workflow() {
       {/* Main Content - Split Layout */}
       <div className="flex h-[calc(100vh-80px)]">
         <Chat
-          conversationId={conversationId}
-          isLoading={isLoading}
-          thoughts={thoughts}
           onStartConversation={handleStartConversation}
-          onContinueConversation={handleContinueConversation}
+          onSendMessage={handleSendMessage}
         />
-        <Canvas currentResponse={currentResponse} />
+        <Canvas currentWorkflow={currentWorkflow} />
       </div>
     </>
   );
