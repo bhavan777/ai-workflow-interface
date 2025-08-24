@@ -227,12 +227,6 @@ export interface Message {
 
   // For status updates
   status?: 'processing' | 'complete' | 'error';
-
-  // For multi-message responses
-  multi_message?: {
-    remaining_messages: string[];
-    delay_ms: number;
-  };
 }
 
 export interface DataFlowNode {
@@ -280,11 +274,6 @@ interface AIResponse {
   nodes: DataFlowNode[];
   connections: DataFlowConnection[];
   workflow_complete: boolean;
-  // Optional: For multi-message responses
-  multi_message?: {
-    messages: string[]; // Array of messages to send sequentially
-    delay_ms?: number; // Delay between messages (default: 1000ms)
-  };
 }
 
 interface DataFlowNode {
@@ -307,11 +296,7 @@ interface DataFlowConnection {
   status: "pending" | "complete" | "error";
 }
 
-MULTI-MESSAGE RESPONSES:
-- You can send multiple messages sequentially using the multi_message field
-- Use this for: greeting + status update, then immediate question
-- Format: "multi_message": { "messages": ["greeting message", "question message"], "delay_ms": 1000 }
-- The client will send these messages one after another with the specified delay
+
 
 CRITICAL RULES:
 - ALWAYS maintain the exact same JSON structure in every response
@@ -333,8 +318,7 @@ CRITICAL RULES:
 - Ask directly for what you need - no confirmations or permissions
 - Assume user is ready to provide information
 - IMPORTANT: You will receive the current workflow state - update it incrementally, don't replace it entirely
-- CRITICAL: The initial greeting is purely informational - do not ask for any data in the greeting message
-- CRITICAL: Do not mention any field names, data requests, or questions in the initial greeting
+- CRITICAL: The initial greeting should include both welcome message and first question with clear visual separation using markdown
 - CRITICAL: When user provides a field value, immediately update the workflow state by moving the field from missing_fields to provided_fields
 
 SEQUENTIAL DATA COLLECTION RULES:
@@ -958,7 +942,7 @@ export const processMessage = async (
       const fieldExample = getFieldExample(nextDataPoint.fieldName, nodeType);
 
       if (isStartingWorkflowNow) {
-        transitionInfo = `\n\nWORKFLOW GREETING: CRITICAL - Use multi_message to send: 1) Greeting only: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`${nodeType}\`** to **\`destination\`**. I'll collect configuration information step by step, starting with your **\`${nodeType}\`** details.\\n\\nI'll ask for one piece of information at a time, and we'll build your workflow together!" 2) Then ask: "Let's start with **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`"`;
+        transitionInfo = `\n\nWORKFLOW GREETING: Start with a welcoming greeting, then ask for the first field with clear visual separation. Use this format: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`${nodeType}\`** to **\`destination\`**. I'll collect configuration information step by step, starting with your **\`${nodeType}\`** details.\\n\\nI'll ask for one piece of information at a time, and we'll build your workflow together!\\n\\n---\\n\\n**Let's start with your \`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`"`;
       } else if (isStartingNode) {
         transitionInfo = `\n\nNODE TRANSITION: Provide a status update about starting ${nodeType} configuration, then immediately ask for the first field. Status: "**Perfect!** ✨ Now I'll collect information related to **\`${nodeType}\`** configuration." Then ask: "Let's start with **\`${nextDataPoint.fieldName}\`**:\\n> **Example:** \`${fieldExample}\`"`;
       } else if (isCompletingCurrentNode) {
@@ -1194,38 +1178,7 @@ export const processMessage = async (
     // Check if workflow is complete based on all nodes being complete
     const workflowComplete = isWorkflowComplete(updatedNodes || []);
 
-    // Handle multi-message responses
-    if (parsed.multi_message && Array.isArray(parsed.multi_message.messages)) {
-      console.log(
-        '📨 Multi-message response detected:',
-        parsed.multi_message.messages.length,
-        'messages'
-      );
-
-      // Create the first message with the first content
-      const firstResponse: Message = {
-        id: generateId(),
-        response_to: currentMessage.id,
-        role: 'assistant',
-        type: 'MESSAGE',
-        content: parsed.multi_message.messages[0],
-        message_type: 'markdown',
-        timestamp: new Date().toISOString(),
-        // Include workflow state in first message
-        nodes: updatedNodes,
-        connections: updatedConnections,
-        workflow_complete: workflowComplete,
-        // Add multi-message metadata
-        multi_message: {
-          remaining_messages: parsed.multi_message.messages.slice(1),
-          delay_ms: parsed.multi_message.delay_ms || 1000,
-        },
-      };
-
-      return firstResponse;
-    }
-
-    // Convert AI response back to our message format (single message)
+    // Convert AI response back to our message format
     const response: Message = {
       id: generateId(),
       response_to: currentMessage.id,
