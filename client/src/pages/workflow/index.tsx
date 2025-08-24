@@ -146,7 +146,10 @@ export default function Workflow() {
           onSendMessage={handleSendMessage}
           onStartWorkflow={handleStartWorkflow}
         />
-        <Canvas currentWorkflow={currentWorkflow} />
+        <Canvas 
+          key={JSON.stringify(currentWorkflow)} 
+          currentWorkflow={currentWorkflow} 
+        />
       </div>
     </>
   );
