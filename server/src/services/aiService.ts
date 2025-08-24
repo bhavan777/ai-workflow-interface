@@ -265,6 +265,9 @@ CRITICAL WORKFLOW REQUIREMENTS:
 - CRITICAL: If user provides store_url, update source-node config and change status to "partial"
 - CRITICAL: If user provides api_key, update source-node config and change status to "complete"
 - CRITICAL: Always check what information the user provided and update nodes accordingly
+- CRITICAL: NEVER validate user input - accept whatever they provide as correct
+- CRITICAL: Do NOT ask for corrections or better formats
+- CRITICAL: Assume all user input is valid and proceed with configuration
 
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
@@ -400,7 +403,10 @@ RULES:
 12. CRITICAL: NODE PERSISTENCE - Only provide fields that are changing or being added to existing nodes
 13. CRITICAL: Do NOT recreate nodes from scratch - preserve existing configuration
 14. CRITICAL: When updating a node, only include the specific fields being updated (name, status, config, data_requirements)
-15. CRITICAL: For nodes not being updated, include only the essential fields (id, type, name, status) to maintain structure
+15. CRITICAL: For nodes not being updated, include only the essential fields (id, type, name, status)
+16. CRITICAL: NEVER validate user input - accept whatever they provide as correct
+17. CRITICAL: Do NOT ask for corrections or better formats
+18. CRITICAL: Assume all user input is valid and proceed with configuration
 12. A node is "complete" when missing_fields is empty
 13. A node is "partial" when some but not all required fields are provided
 14. A node is "pending" when no required fields are provided
@@ -509,6 +515,35 @@ EXAMPLE: If user provides "https://mystore.myshopify.com", update source-node li
     "provided_fields": ["store_url"],
     "missing_fields": ["api_key"]
   }
+}
+
+CRITICAL DATA_REQUIREMENTS RULES:
+- ALWAYS update data_requirements with each piece of information provided
+- Move fields from missing_fields to provided_fields when user provides them
+- Update missing_fields to remove fields that are now provided
+- Keep required_fields constant (don't change the total requirements)
+- Example: If user provides "store_url", move it from missing_fields to provided_fields
+
+SHOPIFY TO SNOWFLAKE EXAMPLE:
+Initial source-node data_requirements:
+{
+  "required_fields": ["store_url", "api_key"],
+  "provided_fields": [],
+  "missing_fields": ["store_url", "api_key"]
+}
+
+After user provides "https://mystore.myshopify.com":
+{
+  "required_fields": ["store_url", "api_key"],
+  "provided_fields": ["store_url"],
+  "missing_fields": ["api_key"]
+}
+
+After user provides "shpat_1234567890abcdef":
+{
+  "required_fields": ["store_url", "api_key"],
+  "provided_fields": ["store_url", "api_key"],
+  "missing_fields": []
 }
 
 CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdown. No code blocks. Just pure JSON.`;
