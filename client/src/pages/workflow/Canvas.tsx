@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 import type { DataFlowConnection, DataFlowNode } from '@/types';
+import { motion } from 'framer-motion';
 import {
   Brain,
-  Check,
   Clock,
   Database,
   HelpCircle,
@@ -107,37 +107,76 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
       {/* Node Content */}
       <div className="w-32 rounded-lg shadow-md bg-background border border-border overflow-hidden">
         {/* Colored Header with Icon+Title and Status Pill */}
-        <div
+        <motion.div
           className={cn(
             'h-12 flex flex-col justify-center px-2',
             getNodeColor(data.type)
           )}
+          layout
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
         >
           {/* Icon and Name - Line 1 */}
-          <div className="flex items-center gap-1 mb-1">
+          <motion.div
+            className="flex items-center gap-1 mb-1"
+            layout
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
             {getNodeIcon(data.type)}
-            <p className="text-[8px] font-medium text-white whitespace-nowrap leading-none">
+            <motion.p
+              className="text-[8px] font-medium text-white whitespace-nowrap leading-none"
+              layout
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
               {data.name}
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Status Pill - Line 2 */}
-          <div className="flex justify-start">
-            <div
+          <motion.div
+            className="flex justify-start"
+            layout
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <motion.div
               className={cn(
                 'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5 w-fit',
                 getStatusPillColor(data.status)
               )}
+              layout
+              animate={{
+                backgroundColor:
+                  data.status === 'complete'
+                    ? 'rgba(22, 163, 74, 0.8)'
+                    : data.status === 'partial'
+                      ? 'rgba(249, 115, 22, 0.8)'
+                      : data.status === 'error'
+                        ? 'rgba(239, 68, 68, 0.8)'
+                        : 'rgba(75, 85, 99, 0.8)',
+              }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {getStatusIcon(data.status)}
-              {getStatusText(data.status)}
-            </div>
-          </div>
-        </div>
+              <motion.span
+                layout
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                {getStatusText(data.status)}
+              </motion.span>
+            </motion.div>
+          </motion.div>
+        </motion.div>
 
         {/* White Content Area - Data Requirements */}
-        <div className="h-24 bg-background p-2">
-          <div className="space-y-1">
+        <motion.div
+          className="h-24 bg-background p-2"
+          layout
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
+          <motion.div
+            className="space-y-1"
+            layout
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
             {/* Data Requirements List */}
             {data.data_requirements?.required_fields &&
             data.data_requirements.required_fields.length > 0 ? (
@@ -145,25 +184,29 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
                 const isProvided =
                   data.data_requirements?.provided_fields.includes(field);
                 return (
-                  <div key={field} className="flex items-center gap-1">
-                    <div className="flex-shrink-0">
-                      {isProvided ? (
-                        <Check className="w-2 h-2 text-green-500" />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full border border-gray-400" />
-                      )}
-                    </div>
-                    <span
+                  <motion.div
+                    key={field}
+                    className="flex justify-center"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  >
+                    <motion.span
                       className={cn(
                         'text-[8px] truncate max-w-20',
                         isProvided
-                          ? 'text-gray-400 line-through'
+                          ? 'text-green-400 line-through'
                           : 'text-muted-foreground'
                       )}
+                      animate={{
+                        color: isProvided ? '#4ade80' : '#6b7280',
+                        textDecoration: isProvided ? 'line-through' : 'none',
+                      }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
                     >
                       {field}
-                    </span>
-                  </div>
+                    </motion.span>
+                  </motion.div>
                 );
               })
             ) : (
@@ -176,8 +219,8 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* Output Handle - Hidden */}

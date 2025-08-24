@@ -26,7 +26,11 @@ export const useWorkflowWebSocket = ({
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = import.meta.env.VITE_API_URL || 'localhost';
       const port = import.meta.env.VITE_API_PORT || '3001';
-      const wsUrl = `${protocol}//${host}:${port}`;
+      
+      // For Railway deployments, don't include port in URL
+      const wsUrl = host.includes('railway.app') 
+        ? `${protocol}//${host}`
+        : `${protocol}//${host}:${port}`;
 
       try {
         const ws = new WebSocket(wsUrl);
