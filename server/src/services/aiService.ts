@@ -500,40 +500,70 @@ export const processMessage = async (
       }
     }
 
+    console.log('🔍 Attempting to parse JSON:', jsonContent);
+
     // Try to parse the JSON
     let parsed;
     try {
       parsed = JSON.parse(jsonContent);
       console.log('✅ JSON parsed successfully');
+      console.log('📋 Parsed content:', JSON.stringify(parsed, null, 2));
     } catch (parseError) {
       console.error('❌ Failed to parse JSON response:', parseError);
       console.log('📄 Attempted to parse:', jsonContent);
 
       // Get current workflow state to provide context-aware fallback
       const currentState = getCurrentWorkflowState(conversationHistory);
-      
-      // Determine what to ask for next based on current state
-      let fallbackMessage = "I understand. Let's continue with the configuration.";
-      
+
+      // Check what information was provided in the current message
+      const currentMessageContent = currentMessage.content.toLowerCase();
+      const hasStoreUrl =
+        currentMessageContent.includes('myshopify.com') ||
+        currentMessageContent.includes('http') ||
+        currentMessageContent.includes('://');
+      const hasApiKey = currentMessageContent.length > 5 && !hasStoreUrl; // Assume any substantial non-URL text is an API key
+
+      // Determine what to ask for next based on current state and current message
+      let fallbackMessage =
+        "I understand. Let's continue with the configuration.";
+
       if (!currentState.nodes || currentState.nodes.length === 0) {
-        fallbackMessage += " What is your Shopify store URL? (e.g., https://mystore.myshopify.com)";
+        if (!hasStoreUrl) {
+          fallbackMessage +=
+            ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
+        } else {
+          fallbackMessage +=
+            ' What is your Shopify API key? (any non-empty string is fine)';
+        }
       } else {
         const sourceNode = currentState.nodes.find(n => n.type === 'source');
-        const transformNode = currentState.nodes.find(n => n.type === 'transform');
-        const destinationNode = currentState.nodes.find(n => n.type === 'destination');
-        
+        const transformNode = currentState.nodes.find(
+          n => n.type === 'transform'
+        );
+        const destinationNode = currentState.nodes.find(
+          n => n.type === 'destination'
+        );
+
         if (sourceNode && sourceNode.status !== 'complete') {
-          if (!sourceNode.config?.store_url) {
-            fallbackMessage += " What is your Shopify store URL? (e.g., https://mystore.myshopify.com)";
-          } else if (!sourceNode.config?.api_key) {
-            fallbackMessage += " What is your Shopify API key? (any non-empty string is fine)";
+          if (!sourceNode.config?.store_url && !hasStoreUrl) {
+            fallbackMessage +=
+              ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
+          } else if (!sourceNode.config?.api_key && !hasApiKey) {
+            fallbackMessage +=
+              ' What is your Shopify API key? (any non-empty string is fine)';
+          } else {
+            // Both store URL and API key are provided, move to transform
+            fallbackMessage +=
+              ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
           }
         } else if (transformNode && transformNode.status !== 'complete') {
-          fallbackMessage += " What type of data processing do you need? (Filter, Aggregate, Join, or Map)";
+          fallbackMessage +=
+            ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
         } else if (destinationNode && destinationNode.status !== 'complete') {
-          fallbackMessage += " What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)";
+          fallbackMessage +=
+            ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
         } else {
-          fallbackMessage += " What would you like to configure next?";
+          fallbackMessage += ' What would you like to configure next?';
         }
       }
 
