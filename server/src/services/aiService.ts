@@ -209,6 +209,11 @@ export interface DataFlowNode {
   status: 'pending' | 'partial' | 'complete' | 'error';
   config?: Record<string, any>;
   position?: { x: number; y: number };
+  data_requirements?: {
+    required_fields: string[];
+    provided_fields: string[];
+    missing_fields: string[];
+  };
 }
 
 export interface DataFlowConnection {
@@ -231,21 +236,36 @@ RESPONSE FORMAT - COPY THIS EXACTLY:
       "type": "source", 
       "name": "[Source Name]",
       "status": "partial|complete|pending",
-      "config": { "field1": "provided_value", "field2": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" },
+      "data_requirements": {
+        "required_fields": ["field1", "field2", "field3"],
+        "provided_fields": ["field1", "field2"],
+        "missing_fields": ["field3"]
+      }
     },
     {
       "id": "transform-node",
       "type": "transform",
       "name": "Data Transform", 
       "status": "pending",
-      "config": {}
+      "config": {},
+      "data_requirements": {
+        "required_fields": ["operation_type"],
+        "provided_fields": [],
+        "missing_fields": ["operation_type"]
+      }
     },
     {
       "id": "destination-node",
       "type": "destination",
       "name": "[Destination Name]",
       "status": "pending", 
-      "config": {}
+      "config": {},
+      "data_requirements": {
+        "required_fields": ["api_key", "endpoint_url"],
+        "provided_fields": [],
+        "missing_fields": ["api_key", "endpoint_url"]
+      }
     }
   ],
   "connections": [
@@ -274,21 +294,36 @@ WHEN ALL NODES ARE COMPLETE, USE THIS FORMAT:
       "type": "source", 
       "name": "[Source Name]",
       "status": "complete",
-      "config": { "field1": "provided_value", "field2": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" },
+      "data_requirements": {
+        "required_fields": ["field1", "field2"],
+        "provided_fields": ["field1", "field2"],
+        "missing_fields": []
+      }
     },
     {
       "id": "transform-node",
       "type": "transform",
       "name": "Data Transform", 
       "status": "complete",
-      "config": { "type": "provided_value" }
+      "config": { "type": "provided_value" },
+      "data_requirements": {
+        "required_fields": ["operation_type"],
+        "provided_fields": ["operation_type"],
+        "missing_fields": []
+      }
     },
     {
       "id": "destination-node",
       "type": "destination",
       "name": "[Destination Name]",
       "status": "complete", 
-      "config": { "field1": "provided_value", "field2": "provided_value" }
+      "config": { "field1": "provided_value", "field2": "provided_value" },
+      "data_requirements": {
+        "required_fields": ["field1", "field2"],
+        "provided_fields": ["field1", "field2"],
+        "missing_fields": []
+      }
     }
   ],
   "connections": [
@@ -317,6 +352,14 @@ RULES:
 6. Thank user for each piece of information provided
 7. Ask the next single question needed
 8. Set node status to "complete" when all required fields for that node are provided
+9. ALWAYS include data_requirements for each node with:
+   - required_fields: Array of all fields needed for this node type
+   - provided_fields: Array of fields that have been provided
+   - missing_fields: Array of fields still needed (required_fields - provided_fields)
+10. Update data_requirements whenever user provides new information
+11. A node is "complete" when missing_fields is empty
+12. A node is "partial" when some but not all required fields are provided
+13. A node is "pending" when no required fields are provided
 9. When all nodes are "complete", set "workflow_complete": true and provide success message
 10. NEVER ask for information that has already been provided
 11. ALWAYS check conversation history to see what information is already available

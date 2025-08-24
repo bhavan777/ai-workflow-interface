@@ -1,5 +1,5 @@
 import { useChat } from '@/hooks/useChat';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ChatInput from './ChatInput';
 import Messages from './Messages';
 import StartWorkflowButton from './StartWorkflowButton';
@@ -9,16 +9,31 @@ interface ChatProps {
   onStartConversation: (description: string) => Promise<void>;
   onSendMessage: (content: string) => void;
   onStartWorkflow?: () => void;
+  onEditWorkflow?: () => void;
 }
 
 export default function Chat({
   onStartConversation,
   onSendMessage,
   onStartWorkflow,
+  onEditWorkflow,
 }: ChatProps) {
   const { messages, isLoading, workflowComplete } = useChat();
   const [description, setDescription] = useState('');
   const [inputValue, setInputValue] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input after AI responds
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant' && !isLoading) {
+      // Focus the input after AI response
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [messages, isLoading]);
 
   // Check if conversation has started (has any messages)
   const hasStarted = messages.length > 0;
@@ -40,6 +55,18 @@ export default function Chat({
     }
   };
 
+  const handleEditWorkflow = () => {
+    setIsEditMode(true);
+
+    // Automatically send the edit request message to the server
+    const editMessage = "I'd like to edit the config";
+    onSendMessage(editMessage);
+
+    if (onEditWorkflow) {
+      onEditWorkflow();
+    }
+  };
+
   // If no conversation has started, show the workflow setup
   if (!hasStarted) {
     return (
@@ -57,15 +84,22 @@ export default function Chat({
   return (
     <div className="w-1/2 border-r border-border bg-background/50 flex flex-col h-full">
       {/* Messages - takes up most of the space */}
-      <Messages messages={messages} />
+      <Messages
+        messages={messages}
+        isWorkflowComplete={workflowComplete && !isEditMode}
+      />
 
       {/* Start Workflow Button - shows when configuration is complete */}
-      {workflowComplete && (
-        <StartWorkflowButton onStartWorkflow={handleStartWorkflow} />
+      {workflowComplete && !isEditMode && (
+        <StartWorkflowButton
+          onStartWorkflow={handleStartWorkflow}
+          onEditWorkflow={handleEditWorkflow}
+        />
       )}
 
       {/* Chat Input - fixed at bottom */}
       <ChatInput
+        ref={inputRef}
         inputValue={inputValue}
         isLoading={isLoading}
         onInputChange={setInputValue}

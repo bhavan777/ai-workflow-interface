@@ -1,8 +1,6 @@
 import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
-import { cn } from '@/lib/utils';
 import type { Message } from '@/types';
-import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Canvas from './Canvas';
@@ -129,30 +127,19 @@ export default function Workflow() {
   const handleStartWorkflow = () => {
     console.log('🚀 Starting workflow with configuration:', currentWorkflow);
     // TODO: Implement workflow execution logic
-    alert('Workflow started! This would trigger the actual data pipeline execution.');
+    alert(
+      'Workflow started! This would trigger the actual data pipeline execution.'
+    );
+  };
+
+  const handleEditWorkflow = () => {
+    console.log('✏️ Edit workflow requested');
+    // The edit message will be automatically sent to the server
+    // which will continue the conversation with relevant questions
   };
 
   return (
     <>
-      {/* Status Indicator */}
-      <div className="absolute top-4 right-4 z-50">
-        <div
-          className={cn(
-            'flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium',
-            isLoading
-              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-              : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-          )}
-        >
-          {isLoading ? (
-            <Pause className="w-4 h-4" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
-          <span>{isLoading ? 'Processing...' : 'Ready'}</span>
-        </div>
-      </div>
-
       {/* Main Content - Split Layout */}
       <div className="flex h-[calc(100vh-80px)]">
         <Chat

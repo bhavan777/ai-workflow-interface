@@ -1,12 +1,17 @@
 import { useChat } from '@/hooks/useChat';
-import type { Message } from '@/types';
-import { AlertCircle, Bot, Brain, User } from 'lucide-react';
+import type { Message as MessageType } from '@/types';
+import Message from './Message';
+import Thought from './Thought';
 
 interface MessagesProps {
-  messages: Message[];
+  messages: MessageType[];
+  isWorkflowComplete?: boolean;
 }
 
-export default function Messages({ messages }: MessagesProps) {
+export default function Messages({
+  messages,
+  isWorkflowComplete = false,
+}: MessagesProps) {
   const { currentThought } = useChat();
 
   // Filter out THOUGHT and STATUS messages since they're handled separately
@@ -24,77 +29,27 @@ export default function Messages({ messages }: MessagesProps) {
     );
   }
 
-  const renderMessage = (message: Message) => {
-    const isUser = message.role === 'user';
-
-    // Different styles based on message type
-    let messageStyle = '';
-    let icon = null;
-
-    switch (message.type) {
-      case 'MESSAGE':
-        messageStyle = isUser
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-foreground';
-        icon = isUser ? (
-          <User className="w-4 h-4" />
-        ) : (
-          <Bot className="w-4 h-4" />
-        );
-        break;
-      case 'ERROR':
-        messageStyle = 'bg-red-50 text-red-800 border border-red-200';
-        icon = <AlertCircle className="w-4 h-4" />;
-        break;
-      default:
-        return null; // Don't render other message types
-    }
-
-    return (
-      <div
-        key={message.id}
-        className={`flex items-start space-x-3 ${
-          isUser ? 'justify-end' : 'justify-start'
-        }`}
-      >
-        {!isUser && (
-          <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-            {icon}
-          </div>
-        )}
-
-        <div className={`max-w-[80%] rounded-lg px-4 py-2 ${messageStyle}`}>
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-        </div>
-
-        {isUser && (
-          <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-primary-foreground" />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderThought = () => {
-    if (!currentThought) return null;
-
-    return (
-      <div className="flex items-start space-x-3 justify-start animate-pulse duration-1000">
-        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-          <Brain className="w-4 h-4 text-blue-600" />
-        </div>
-        <div className="max-w-[80%] rounded-lg px-4 py-2 bg-blue-50 text-blue-800 border border-blue-200">
-          <p className="text-sm whitespace-pre-wrap">{currentThought}</p>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="flex-1 overflow-y-auto space-y-4 p-4">
-      {displayMessages.map(renderMessage)}
-      {renderThought()}
+    <div
+      className={`flex-1 overflow-y-auto space-y-4 p-4 transition-all duration-500 ${
+        isWorkflowComplete ? 'opacity-40 blur-[0.3px]' : ''
+      }`}
+    >
+      {displayMessages.map(message => (
+        <Message key={message.id} message={message} />
+      ))}
+
+      {currentThought && <Thought thought={currentThought} />}
+
+      {/* Visual indicator when workflow is complete */}
+      {isWorkflowComplete && (
+        <div className="text-center py-4">
+          <div className="inline-flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+            <span>✨</span>
+            <span>Workflow configuration complete!</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

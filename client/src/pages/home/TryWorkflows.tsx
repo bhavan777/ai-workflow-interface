@@ -76,7 +76,7 @@ export default function TryWorkflows() {
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            className="w-full h-16 text-lg px-6 pr-16 rounded-2xl border-2 border-border focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 shadow-lg"
+            className="w-full h-16 text-lg px-6 pr-16 rounded-2xl border border-border focus:border-orange-500 focus:shadow-[0_0_0_4px_rgba(249,115,22,0.25)] focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-200 shadow-lg"
           />
           <Button
             type="submit"
