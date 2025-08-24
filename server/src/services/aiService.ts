@@ -235,7 +235,7 @@ const SYSTEM_PROMPT = `You are a data integration expert helping users build dat
 
 CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or after the JSON. No explanations. Just the JSON.
 
-RESPONSE FORMAT:
+RESPONSE FORMAT - COPY THIS EXACTLY:
 {
   "message": "Thank you for that information! Now I need to know: [next single question]",
   "nodes": [
@@ -512,70 +512,107 @@ export const processMessage = async (
       console.error('❌ Failed to parse JSON response:', parseError);
       console.log('📄 Attempted to parse:', jsonContent);
 
-      // Get current workflow state to provide context-aware fallback
-      const currentState = getCurrentWorkflowState(conversationHistory);
+      // Try to repair common JSON issues
+      let repairedJson = jsonContent;
 
-      // Check what information was provided in the current message
-      const currentMessageContent = currentMessage.content.toLowerCase();
-      const hasStoreUrl =
-        currentMessageContent.includes('myshopify.com') ||
-        currentMessageContent.includes('http') ||
-        currentMessageContent.includes('://');
-      const hasApiKey = currentMessageContent.length > 5 && !hasStoreUrl; // Assume any substantial non-URL text is an API key
-
-      // Determine what to ask for next based on current state and current message
-      let fallbackMessage =
-        "I understand. Let's continue with the configuration.";
-
-      if (!currentState.nodes || currentState.nodes.length === 0) {
-        if (!hasStoreUrl) {
-          fallbackMessage +=
-            ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
-        } else {
-          fallbackMessage +=
-            ' What is your Shopify API key? (any non-empty string is fine)';
-        }
-      } else {
-        const sourceNode = currentState.nodes.find(n => n.type === 'source');
-        const transformNode = currentState.nodes.find(
-          n => n.type === 'transform'
-        );
-        const destinationNode = currentState.nodes.find(
-          n => n.type === 'destination'
-        );
-
-        if (sourceNode && sourceNode.status !== 'complete') {
-          if (!sourceNode.config?.store_url && !hasStoreUrl) {
-            fallbackMessage +=
-              ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
-          } else if (!sourceNode.config?.api_key && !hasApiKey) {
-            fallbackMessage +=
-              ' What is your Shopify API key? (any non-empty string is fine)';
-          } else {
-            // Both store URL and API key are provided, move to transform
-            fallbackMessage +=
-              ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
-          }
-        } else if (transformNode && transformNode.status !== 'complete') {
-          fallbackMessage +=
-            ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
-        } else if (destinationNode && destinationNode.status !== 'complete') {
-          fallbackMessage +=
-            ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
-        } else {
-          fallbackMessage += ' What would you like to configure next?';
-        }
+      // Remove any text before the first {
+      const firstBrace = repairedJson.indexOf('{');
+      if (firstBrace > 0) {
+        repairedJson = repairedJson.substring(firstBrace);
       }
 
-      // Return a context-aware fallback response
-      return {
-        id: generateId(),
-        response_to: currentMessage.id,
-        role: 'assistant',
-        type: 'MESSAGE',
-        content: fallbackMessage,
-        timestamp: new Date().toISOString(),
-      };
+      // Remove any text after the last }
+      const lastBrace = repairedJson.lastIndexOf('}');
+      if (lastBrace > 0 && lastBrace < repairedJson.length - 1) {
+        repairedJson = repairedJson.substring(0, lastBrace + 1);
+      }
+
+      // Try to fix common syntax errors
+      repairedJson = repairedJson
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(
+          /([a-zA-Z0-9_]+):\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])/g,
+          '"$1": "$2"$3'
+        ) // Add quotes to unquoted values
+        .replace(
+          /([a-zA-Z0-9_]+):\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])/g,
+          '"$1": "$2"'
+        ); // Add quotes to last unquoted values
+
+      console.log('🔧 Attempting to repair JSON:', repairedJson);
+
+      try {
+        parsed = JSON.parse(repairedJson);
+        console.log('✅ JSON repaired and parsed successfully');
+        console.log('📋 Repaired content:', JSON.stringify(parsed, null, 2));
+      } catch (repairError) {
+        console.error('❌ Failed to repair JSON:', repairError);
+
+        // Get current workflow state to provide context-aware fallback
+        const currentState = getCurrentWorkflowState(conversationHistory);
+
+        // Check what information was provided in the current message
+        const currentMessageContent = currentMessage.content.toLowerCase();
+        const hasStoreUrl =
+          currentMessageContent.includes('myshopify.com') ||
+          currentMessageContent.includes('http') ||
+          currentMessageContent.includes('://');
+        const hasApiKey = currentMessageContent.length > 5 && !hasStoreUrl; // Assume any substantial non-URL text is an API key
+
+        // Determine what to ask for next based on current state and current message
+        let fallbackMessage =
+          "I understand. Let's continue with the configuration.";
+
+        if (!currentState.nodes || currentState.nodes.length === 0) {
+          if (!hasStoreUrl) {
+            fallbackMessage +=
+              ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
+          } else {
+            fallbackMessage +=
+              ' What is your Shopify API key? (any non-empty string is fine)';
+          }
+        } else {
+          const sourceNode = currentState.nodes.find(n => n.type === 'source');
+          const transformNode = currentState.nodes.find(
+            n => n.type === 'transform'
+          );
+          const destinationNode = currentState.nodes.find(
+            n => n.type === 'destination'
+          );
+
+          if (sourceNode && sourceNode.status !== 'complete') {
+            if (!sourceNode.config?.store_url && !hasStoreUrl) {
+              fallbackMessage +=
+                ' What is your Shopify store URL? (e.g., https://mystore.myshopify.com)';
+            } else if (!sourceNode.config?.api_key && !hasApiKey) {
+              fallbackMessage +=
+                ' What is your Shopify API key? (any non-empty string is fine)';
+            } else {
+              // Both store URL and API key are provided, move to transform
+              fallbackMessage +=
+                ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
+            }
+          } else if (transformNode && transformNode.status !== 'complete') {
+            fallbackMessage +=
+              ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
+          } else if (destinationNode && destinationNode.status !== 'complete') {
+            fallbackMessage +=
+              ' What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)';
+          } else {
+            fallbackMessage += ' What would you like to configure next?';
+          }
+        }
+
+        // Return a context-aware fallback response
+        return {
+          id: generateId(),
+          response_to: currentMessage.id,
+          role: 'assistant',
+          type: 'MESSAGE',
+          content: fallbackMessage,
+          timestamp: new Date().toISOString(),
+        };
+      }
     }
 
     // Validate the response structure
