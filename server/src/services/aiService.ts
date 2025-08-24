@@ -291,6 +291,17 @@ RULES:
 11. ALWAYS check conversation history to see what information is already available
 12. If user provides information for a different step, acknowledge it and continue with the current step
 13. If user asks about options, provide them clearly and ask for their choice
+14. ACCEPT any user input unless it's clearly invalid (e.g., non-URL for URL fields)
+15. For validation failures, explain the issue and provide a clear example of valid input
+16. Be flexible with input formats - accept variations and common formats
+
+VALIDATION RULES:
+- Only validate when absolutely necessary (URLs, email formats, etc.)
+- For URLs: Must start with http:// or https:// or be a valid domain format
+- For API keys: Accept any non-empty string
+- For names/descriptions: Accept any non-empty text
+- For options: Accept variations (e.g., "filter", "Filter", "FILTER" all work)
+- When validation fails, provide: "I need a valid [field type]. For example: [specific example]"
 
 CONVERSATION FLOW:
 - User starts: "I want to connect Shopify to Snowflake"
@@ -299,6 +310,11 @@ CONVERSATION FLOW:
 - Assistant: {"message": "Thank you! Now I need your Shopify API key. What is it?", "nodes": [...], "connections": [...]}
 - User: "abc123"
 - Assistant: {"message": "Perfect! Your Shopify source is configured. Now let's set up the data transformation. What type of data processing do you need?", "nodes": [...], "connections": [...]}
+
+VALIDATION EXAMPLES:
+- If user provides "my store" for URL: "I need a valid URL. For example: https://mystore.myshopify.com"
+- If user provides empty string: "I need your [field name]. Please provide a value."
+- If user provides invalid option: "Please choose from: Filter, Aggregate, Join, or Map"
 
 IMPORTANT: Always check the conversation history to see what information has already been provided. Do not ask for the same information twice.
 
@@ -364,14 +380,18 @@ export const processMessage = async (
 ): Promise<Message> => {
   try {
     console.log('🔄 Starting processMessage with Groq Cloud...');
-    console.log(`📚 Conversation history length: ${conversationHistory.length}`);
+    console.log(
+      `📚 Conversation history length: ${conversationHistory.length}`
+    );
     console.log(`📝 Current message: ${currentMessage.content}`);
-    
+
     // Log the last few messages for debugging
     const recentMessages = conversationHistory.slice(-5);
     console.log('📋 Recent conversation history:');
     recentMessages.forEach((msg, index) => {
-      console.log(`  ${index + 1}. [${msg.role}] ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
+      console.log(
+        `  ${index + 1}. [${msg.role}] ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`
+      );
     });
 
     // Check if API key is available
@@ -491,35 +511,29 @@ export const processMessage = async (
 
       // Get current workflow state to provide context-aware fallback
       const currentState = getCurrentWorkflowState(conversationHistory);
-
+      
       // Determine what to ask for next based on current state
-      let fallbackMessage =
-        "I understand. Let's continue with the configuration.";
-
+      let fallbackMessage = "I understand. Let's continue with the configuration.";
+      
       if (!currentState.nodes || currentState.nodes.length === 0) {
-        fallbackMessage += ' What is your Shopify store URL?';
+        fallbackMessage += " What is your Shopify store URL? (e.g., https://mystore.myshopify.com)";
       } else {
         const sourceNode = currentState.nodes.find(n => n.type === 'source');
-        const transformNode = currentState.nodes.find(
-          n => n.type === 'transform'
-        );
-        const destinationNode = currentState.nodes.find(
-          n => n.type === 'destination'
-        );
-
+        const transformNode = currentState.nodes.find(n => n.type === 'transform');
+        const destinationNode = currentState.nodes.find(n => n.type === 'destination');
+        
         if (sourceNode && sourceNode.status !== 'complete') {
           if (!sourceNode.config?.store_url) {
-            fallbackMessage += ' What is your Shopify store URL?';
+            fallbackMessage += " What is your Shopify store URL? (e.g., https://mystore.myshopify.com)";
           } else if (!sourceNode.config?.api_key) {
-            fallbackMessage += ' What is your Shopify API key?';
+            fallbackMessage += " What is your Shopify API key? (any non-empty string is fine)";
           }
         } else if (transformNode && transformNode.status !== 'complete') {
-          fallbackMessage +=
-            ' What type of data processing do you need? (Filter, Aggregate, Join, or Map)';
+          fallbackMessage += " What type of data processing do you need? (Filter, Aggregate, Join, or Map)";
         } else if (destinationNode && destinationNode.status !== 'complete') {
-          fallbackMessage += ' What is your Snowflake account URL?';
+          fallbackMessage += " What is your Snowflake account URL? (e.g., https://your-account.snowflakecomputing.com)";
         } else {
-          fallbackMessage += ' What would you like to configure next?';
+          fallbackMessage += " What would you like to configure next?";
         }
       }
 
