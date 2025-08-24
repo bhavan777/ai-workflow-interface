@@ -9,6 +9,7 @@ import {
   Settings,
   Zap,
 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import type { Edge, Node, NodeTypes } from 'reactflow';
 import ReactFlow, { Background, Controls, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -189,6 +190,17 @@ const nodeTypes: NodeTypes = {
 };
 
 export default function Canvas({ currentWorkflow }: CanvasProps) {
+  const reactFlowRef = useRef<any>(null);
+
+  // Effect to fit view when nodes change
+  useEffect(() => {
+    if (reactFlowRef.current && currentWorkflow.nodes.length > 0) {
+      setTimeout(() => {
+        reactFlowRef.current?.fitView({ padding: 0.3 });
+      }, 100);
+    }
+  }, [currentWorkflow.nodes, currentWorkflow.connections]);
+
   // Convert workflow nodes to React Flow nodes
   const nodes: Node[] = currentWorkflow.nodes.map((node, index) => ({
     id: node.id,
@@ -234,11 +246,17 @@ export default function Canvas({ currentWorkflow }: CanvasProps) {
             {/* React Flow Canvas - Full Height */}
             <div className="h-full bg-background rounded-lg border border-border">
               <ReactFlow
+                ref={reactFlowRef}
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
                 fitView
-                fitViewOptions={{ padding: 0.2 }}
+                fitViewOptions={{
+                  padding: 0.3,
+                  includeHiddenNodes: false,
+                  minZoom: 0.5,
+                  maxZoom: 1.5,
+                }}
                 attributionPosition="bottom-left"
                 className="bg-background"
               >

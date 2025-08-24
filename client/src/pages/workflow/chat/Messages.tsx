@@ -6,11 +6,13 @@ import Thought from './Thought';
 interface MessagesProps {
   messages: MessageType[];
   isWorkflowComplete?: boolean;
+  onRetry?: () => void;
 }
 
 export default function Messages({
   messages,
   isWorkflowComplete = false,
+  onRetry,
 }: MessagesProps) {
   const { currentThought } = useChat();
 
@@ -35,8 +37,13 @@ export default function Messages({
         isWorkflowComplete ? 'opacity-40 blur-[0.3px]' : ''
       }`}
     >
-      {displayMessages.map(message => (
-        <Message key={message.id} message={message} />
+      {displayMessages.map((message, index) => (
+        <Message
+          key={message.id}
+          message={message}
+          onRetry={onRetry}
+          isLastMessage={index === displayMessages.length - 1}
+        />
       ))}
 
       {currentThought && <Thought thought={currentThought} />}

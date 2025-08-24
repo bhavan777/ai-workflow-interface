@@ -227,6 +227,12 @@ const SYSTEM_PROMPT = `You are a data integration expert helping users build dat
 
 CRITICAL: You MUST respond with ONLY a valid JSON object. No text before or after the JSON. No explanations. Just the JSON.
 
+CRITICAL WORKFLOW REQUIREMENTS:
+- ALWAYS create exactly 3 nodes: 1 source, 1 transform, 1 destination
+- ALWAYS include ALL 3 nodes in EVERY response, even if not being configured
+- NEVER omit any of the 3 nodes from the response
+- Each node must have unique IDs: "source-node", "transform-node", "destination-node"
+
 RESPONSE FORMAT - COPY THIS EXACTLY:
 {
   "message": "Thank you for that information! Now I need to know: [next single question]",
@@ -360,17 +366,20 @@ RULES:
 11. A node is "complete" when missing_fields is empty
 12. A node is "partial" when some but not all required fields are provided
 13. A node is "pending" when no required fields are provided
-9. When all nodes are "complete", set "workflow_complete": true and provide success message
-10. NEVER ask for information that has already been provided
-11. ALWAYS check conversation history to see what information is already available
-12. If user provides information for a different step, acknowledge it and continue with the current step
-13. If user asks about options, provide them clearly and ask for their choice
-14. ACCEPT any user input unless it's clearly invalid (e.g., non-URL for URL fields)
-15. For validation failures, explain the issue and provide a clear example of valid input
-16. Be flexible with input formats - accept variations and common formats
-17. DYNAMICALLY determine source and destination based on user's request
-18. Ask relevant questions for the specific source/destination combination
-19. ALWAYS include the current node configuration in your response
+14. CRITICAL: ALWAYS include ALL 3 nodes (source-node, transform-node, destination-node) in EVERY response
+15. CRITICAL: NEVER omit any of the 3 nodes, even if they are not being configured yet
+16. CRITICAL: If a node is not being configured, keep it with "pending" status and empty config
+17. When all nodes are "complete", set "workflow_complete": true and provide success message
+18. NEVER ask for information that has already been provided
+19. ALWAYS check conversation history to see what information is already available
+20. If user provides information for a different step, acknowledge it and continue with the current step
+21. If user asks about options, provide them clearly and ask for their choice
+22. ACCEPT any user input unless it's clearly invalid (e.g., non-URL for URL fields)
+23. For validation failures, explain the issue and provide a clear example of valid input
+24. Be flexible with input formats - accept variations and common formats
+25. DYNAMICALLY determine source and destination based on user's request
+26. Ask relevant questions for the specific source/destination combination
+27. ALWAYS include the current node configuration in your response
 
 VALIDATION RULES:
 - Only validate when absolutely necessary (URLs, email formats, etc.)
@@ -440,6 +449,67 @@ CRITICAL: Respond with ONLY the JSON object. No text before or after. No markdow
 // Helper function to generate unique IDs
 const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+// Helper function to ensure all 3 nodes are always present
+const ensureAllNodesPresent = (nodes: DataFlowNode[]): DataFlowNode[] => {
+  const requiredNodeIds = ['source-node', 'transform-node', 'destination-node'];
+  const existingNodeIds = nodes.map(node => node.id);
+
+  // If all required nodes are present, return as is
+  if (requiredNodeIds.every(id => existingNodeIds.includes(id))) {
+    return nodes;
+  }
+
+  // Create missing nodes
+  const missingNodes: DataFlowNode[] = [];
+
+  if (!existingNodeIds.includes('source-node')) {
+    missingNodes.push({
+      id: 'source-node',
+      type: 'source',
+      name: 'Data Source',
+      status: 'pending',
+      config: {},
+      data_requirements: {
+        required_fields: ['connection_string', 'username', 'password'],
+        provided_fields: [],
+        missing_fields: ['connection_string', 'username', 'password'],
+      },
+    });
+  }
+
+  if (!existingNodeIds.includes('transform-node')) {
+    missingNodes.push({
+      id: 'transform-node',
+      type: 'transform',
+      name: 'Data Transform',
+      status: 'pending',
+      config: {},
+      data_requirements: {
+        required_fields: ['operation_type'],
+        provided_fields: [],
+        missing_fields: ['operation_type'],
+      },
+    });
+  }
+
+  if (!existingNodeIds.includes('destination-node')) {
+    missingNodes.push({
+      id: 'destination-node',
+      type: 'destination',
+      name: 'Data Destination',
+      status: 'pending',
+      config: {},
+      data_requirements: {
+        required_fields: ['api_key', 'endpoint_url'],
+        provided_fields: [],
+        missing_fields: ['api_key', 'endpoint_url'],
+      },
+    });
+  }
+
+  return [...nodes, ...missingNodes];
 };
 
 // Helper function to get current workflow state from conversation history
@@ -739,6 +809,15 @@ export const processMessage = async (
     // Validate the response structure
     if (!parsed.message) {
       throw new Error('Invalid response structure - missing message');
+    }
+
+    // Ensure all 3 nodes are always present
+    if (parsed.nodes && Array.isArray(parsed.nodes)) {
+      parsed.nodes = ensureAllNodesPresent(parsed.nodes);
+      console.log(
+        '✅ Ensured all 3 nodes are present:',
+        parsed.nodes.map((n: DataFlowNode) => n.id)
+      );
     }
 
     sendThought?.('✨ Perfect! I have what you need.');

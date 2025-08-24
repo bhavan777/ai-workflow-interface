@@ -67,10 +67,16 @@ export default function Chat({
     }
   };
 
+  const handleRetry = () => {
+    // Send a retry message to the server
+    const retryMessage = 'Please retry the previous operation';
+    onSendMessage(retryMessage);
+  };
+
   // If no conversation has started, show the workflow setup
   if (!hasStarted) {
     return (
-      <div className="w-1/2 border-r border-border bg-background/50">
+      <div className="w-1/3 border-r border-border bg-background/50">
         <WorkflowSetup
           description={description}
           isLoading={isLoading}
@@ -87,6 +93,7 @@ export default function Chat({
       <Messages
         messages={messages}
         isWorkflowComplete={workflowComplete && !isEditMode}
+        onRetry={handleRetry}
       />
 
       {/* Start Workflow Button - shows when configuration is complete */}
