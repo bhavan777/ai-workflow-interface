@@ -88,7 +88,7 @@ export default function Chat({
   }
 
   return (
-    <div className="w-1/2 border-r border-border bg-background/50 flex flex-col h-full">
+    <div className="w-1/3 border-r border-border bg-background/50 flex flex-col h-full">
       {/* Messages - takes up most of the space */}
       <Messages
         messages={messages}

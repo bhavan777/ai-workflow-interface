@@ -13,6 +13,15 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
 
+  // Node data state
+  nodeData: {
+    node_id: string;
+    node_title: string;
+    filled_values: Record<string, string>;
+  } | null;
+  nodeDataLoading: boolean;
+  nodeDataError: string | null;
+
   // Actions
   addMessage: (message: Message) => void;
   setCurrentThought: (thought: Message | null) => void;
@@ -21,11 +30,24 @@ interface ChatState {
   setError: (error: string | null) => void;
   clearMessages: () => void;
   addUserMessage: (content: string) => void;
+  sendMessage: (message: any) => void;
   updateNodeStatus: (nodeId: string, status: DataFlowNode['status']) => void;
   getCurrentWorkflowState: () => {
     nodes: DataFlowNode[];
     connections: DataFlowConnection[];
   };
+
+  // Node data actions
+  setNodeData: (
+    data: {
+      node_id: string;
+      node_title: string;
+      filled_values: Record<string, string>;
+    } | null
+  ) => void;
+  setNodeDataLoading: (loading: boolean) => void;
+  setNodeDataError: (error: string | null) => void;
+  clearNodeData: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -39,6 +61,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   workflowComplete: false,
   isLoading: false,
   error: null,
+
+  // Node data state
+  nodeData: null,
+  nodeDataLoading: false,
+  nodeDataError: null,
 
   // Actions
   addMessage: message =>
@@ -103,6 +130,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       currentThought: null,
       workflowComplete: false,
       error: null,
+      nodeData: null,
+      nodeDataLoading: false,
+      nodeDataError: null,
     }),
 
   addUserMessage: content =>
@@ -120,6 +150,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
 
+  sendMessage: (message: any) => {
+    // This will be implemented to send messages via WebSocket
+    // For now, it's a placeholder
+    console.log('Sending message:', message);
+  },
+
   updateNodeStatus: (nodeId: string, status: DataFlowNode['status']) =>
     set(state => ({
       currentWorkflow: {
@@ -131,4 +167,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })),
 
   getCurrentWorkflowState: () => get().currentWorkflow,
+
+  // Node data actions
+  setNodeData: data => set({ nodeData: data, nodeDataError: null }),
+  setNodeDataLoading: loading => set({ nodeDataLoading: loading }),
+  setNodeDataError: error => set({ nodeDataError: error, nodeData: null }),
+  clearNodeData: () =>
+    set({ nodeData: null, nodeDataError: null, nodeDataLoading: false }),
 }));

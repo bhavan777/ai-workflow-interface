@@ -1,13 +1,12 @@
 import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
-import type { Message } from '@/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Canvas from './Canvas';
 import Chat from './chat';
 
 export default function Workflow() {
-  const [isLoading, setIsLoading] = useState(false);
   const hasInitialized = useRef(false);
   const hasStartedConversation = useRef(false);
   const location = useLocation();
@@ -17,47 +16,12 @@ export default function Workflow() {
     currentWorkflow,
     addUserMessage,
     setLoadingState,
-    addMessage,
-    setCurrentThought,
+    sendNodeDataRequest,
   } = useChat();
 
-  // WebSocket handlers
-  const handleServerMessage = useCallback(
-    (message: Message) => {
-      console.log('📨 Received message:', message);
-
-      // Handle thoughts separately (server-sent only)
-      if (message.type === 'THOUGHT') {
-        setCurrentThought(message);
-        return;
-      }
-
-      // Add non-thought messages to the store
-      addMessage(message);
-
-      // Update loading state based on message type
-      if (message.type === 'STATUS') {
-        setIsLoading(message.status === 'processing');
-        setLoadingState(message.status === 'processing');
-      } else if (message.type === 'MESSAGE' && message.role === 'assistant') {
-        // Assistant message received, stop loading and clear thought
-        setIsLoading(false);
-        setLoadingState(false);
-        setCurrentThought(null); // Clear thought when AI responds
-      } else if (message.type === 'ERROR') {
-        // Error received, stop loading and clear thought
-        setIsLoading(false);
-        setLoadingState(false);
-        setCurrentThought(null); // Clear thought on error
-      }
-    },
-    [setLoadingState, addMessage, setCurrentThought]
-  );
-
-  // Initialize WebSocket
-  const { connect, sendUserMessage } = useWorkflowWebSocket({
-    onMessage: handleServerMessage,
-  });
+  // Initialize WebSocket (now handles all message processing internally)
+  const { connect, sendUserMessage, sendMessage, isConnecting } =
+    useWorkflowWebSocket();
 
   // Connect to WebSocket when component mounts
   useEffect(() => {
@@ -73,7 +37,7 @@ export default function Workflow() {
     };
 
     initializeWebSocket();
-  }, []);
+  }, [connect]);
 
   // Handle initial message from navigation
   useEffect(() => {
@@ -90,7 +54,6 @@ export default function Workflow() {
   }, [location.state, hasInitialized.current]);
 
   const handleStartConversation = async (description: string) => {
-    setIsLoading(true);
     setLoadingState(true);
 
     try {
@@ -101,13 +64,11 @@ export default function Workflow() {
       sendUserMessage(description);
     } catch (error) {
       console.error('Error starting conversation:', error);
-      setIsLoading(false);
       setLoadingState(false);
     }
   };
 
   const handleSendMessage = (content: string) => {
-    setIsLoading(true);
     setLoadingState(true);
 
     try {
@@ -118,7 +79,6 @@ export default function Workflow() {
       sendUserMessage(content);
     } catch (error) {
       console.error('Error sending message:', error);
-      setIsLoading(false);
       setLoadingState(false);
     }
   };
@@ -137,18 +97,43 @@ export default function Workflow() {
     // which will continue the conversation with relevant questions
   };
 
+  const handleNodeDataRequest = (nodeId: string) => {
+    sendNodeDataRequest(nodeId, sendMessage);
+  };
+
   return (
     <>
       {/* Main Content - Split Layout */}
       <div className="flex h-[calc(100vh-80px)]">
-        <Chat
-          onStartConversation={handleStartConversation}
-          onSendMessage={handleSendMessage}
-          onStartWorkflow={handleStartWorkflow}
-        />
-        <Canvas 
-          key={JSON.stringify(currentWorkflow)} 
-          currentWorkflow={currentWorkflow} 
+        {isConnecting ? (
+          // Show connection loader only in the chat section
+          <div className="w-1/3 border-r border-border bg-background/50 flex items-center justify-center">
+            <div className="text-center">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full mx-auto mb-3"
+              />
+              <h3 className="text-sm font-medium text-foreground mb-1">
+                Connecting to AI...
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Establishing secure connection
+              </p>
+            </div>
+          </div>
+        ) : (
+          <Chat
+            onStartConversation={handleStartConversation}
+            onSendMessage={handleSendMessage}
+            onStartWorkflow={handleStartWorkflow}
+          />
+        )}
+        <Canvas
+          key={JSON.stringify(currentWorkflow)}
+          currentWorkflow={currentWorkflow}
+          isConnecting={isConnecting}
+          onNodeDataRequest={handleNodeDataRequest}
         />
       </div>
     </>

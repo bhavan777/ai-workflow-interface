@@ -1,17 +1,79 @@
+import { useChatStore } from '@/store/useChatStore';
 import type { Message } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-interface UseWorkflowWebSocketProps {
-  onMessage: (message: Message) => void;
-}
-
-export const useWorkflowWebSocket = ({
-  onMessage,
-}: UseWorkflowWebSocketProps) => {
+export const useWorkflowWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Get store actions
+  const {
+    addMessage,
+    setCurrentThought,
+    setLoading,
+    setNodeData,
+    setNodeDataLoading,
+    setNodeDataError,
+  } = useChatStore();
+
+  // Handle node data messages
+  const handleNodeDataMessage = useCallback(
+    (message: Message) => {
+      if (message.type === 'NODE_DATA') {
+        setNodeData({
+          node_id: message.node_id || '',
+          node_title: message.node_title || '',
+          filled_values: message.filled_values || {},
+        });
+        setNodeDataLoading(false);
+      } else if (message.type === 'ERROR' && message.content.includes('node')) {
+        setNodeDataError(message.content);
+        setNodeDataLoading(false);
+      }
+    },
+    [setNodeData, setNodeDataLoading, setNodeDataError]
+  );
+
+  // Centralized message handler
+  const handleServerMessage = useCallback(
+    (message: Message) => {
+      console.log('📨 Received message:', message);
+
+      // Handle thoughts separately (server-sent only)
+      if (message.type === 'THOUGHT') {
+        setCurrentThought(message);
+        return;
+      }
+
+      // Handle node data messages
+      if (
+        message.type === 'NODE_DATA' ||
+        (message.type === 'ERROR' && message.content.includes('node'))
+      ) {
+        handleNodeDataMessage(message);
+        return;
+      }
+
+      // Add non-thought messages to the store
+      addMessage(message);
+
+      // Update loading state based on message type
+      if (message.type === 'STATUS') {
+        setLoading(message.status === 'processing');
+      } else if (message.type === 'MESSAGE' && message.role === 'assistant') {
+        // Assistant message received, stop loading and clear thought
+        setLoading(false);
+        setCurrentThought(null); // Clear thought when AI responds
+      } else if (message.type === 'ERROR') {
+        // Error received, stop loading and clear thought
+        setLoading(false);
+        setCurrentThought(null); // Clear thought on error
+      }
+    },
+    [setLoading, addMessage, setCurrentThought, handleNodeDataMessage]
+  );
 
   const connect = useCallback((): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -45,8 +107,8 @@ export const useWorkflowWebSocket = ({
             const message: Message = JSON.parse(event.data);
             console.log('📨 WebSocket message received:', message);
 
-            // All messages go through the same handler
-            onMessage(message);
+            // Handle all messages directly here
+            handleServerMessage(message);
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
           }
@@ -73,7 +135,7 @@ export const useWorkflowWebSocket = ({
         reject(error);
       }
     });
-  }, [onMessage]);
+  }, [handleServerMessage]);
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {

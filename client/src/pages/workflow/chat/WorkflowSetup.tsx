@@ -99,23 +99,15 @@ export default function WorkflowSetup({
               disabled={isButtonDisabled}
               className="w-full h-12 text-base font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
             >
-              {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-5 h-5 border-2 border-current border-t-transparent rounded-full"
-                />
-              ) : (
-                <motion.div
-                  whileHover={{ x: 2 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center space-x-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Start Workflow</span>
-                  <ArrowRight className="w-4 h-4" />
-                </motion.div>
-              )}
+              <motion.div
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center space-x-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{isLoading ? 'Starting...' : 'Start Workflow'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </motion.div>
             </Button>
           </motion.div>
         </motion.div>

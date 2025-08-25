@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Loader2 } from 'lucide-react';
-import React, { forwardRef } from 'react';
 import { motion } from 'framer-motion';
+import { Send } from 'lucide-react';
+import React, { forwardRef } from 'react';
 
 interface ChatInputProps {
   inputValue: string;
@@ -30,7 +30,7 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
     const isSubmitDisabled = !inputValue.trim() || isLoading;
 
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
@@ -41,40 +41,30 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             <Input
               ref={ref}
               type="text"
-              placeholder="Type your answer..."
+              placeholder={
+                isLoading ? 'AI is thinking...' : 'Type your answer...'
+              }
               value={inputValue}
               onChange={e => onInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={isLoading}
               className="w-full h-12 pr-12 rounded-lg border border-border focus:border-primary focus:shadow-[0_0_0_4px_hsla(24,95%,53%,0.4)] focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-300 group-hover:border-border/80 group-hover:shadow-sm"
             />
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 type="submit"
                 disabled={isSubmitDisabled}
                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md"
               >
-                {isLoading ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Loader2 className="w-4 h-4" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    whileHover={{ x: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Send className="w-4 h-4" />
-                  </motion.div>
-                )}
+                <motion.div
+                  whileHover={{ x: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Send className="w-4 h-4" />
+                </motion.div>
               </Button>
             </motion.div>
-            
+
             {/* Subtle glow effect when input has content */}
             {inputValue.trim() && !isLoading && (
               <motion.div
@@ -85,7 +75,7 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               />
             )}
           </div>
-          
+
           {/* Keyboard shortcut hint */}
           <motion.div
             initial={{ opacity: 0 }}
