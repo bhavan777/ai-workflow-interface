@@ -121,14 +121,82 @@ export class GroqCloudClient {
   }
 }
 
-// Create a simple hardcoded workflow structure
-const createHardcodedWorkflow = () => {
+// Helper function to detect service types from user message
+const detectServiceTypes = (
+  message: string
+): { sourceType: string; destinationType: string } => {
+  const content = message.toLowerCase();
+
+  // Common source patterns
+  let sourceType = 'Data Source';
+  if (content.includes('shopify')) sourceType = 'Shopify Store';
+  else if (content.includes('salesforce')) sourceType = 'Salesforce CRM';
+  else if (
+    content.includes('mysql') ||
+    content.includes('postgresql') ||
+    content.includes('database')
+  )
+    sourceType = 'Database';
+  else if (content.includes('api') || content.includes('rest'))
+    sourceType = 'API Endpoint';
+  else if (
+    content.includes('s3') ||
+    content.includes('bucket') ||
+    content.includes('cloud_storage')
+  )
+    sourceType = 'Cloud Storage';
+  else if (content.includes('bigquery') || content.includes('gcp'))
+    sourceType = 'BigQuery Dataset';
+  else if (content.includes('mongodb')) sourceType = 'MongoDB Collection';
+  else if (content.includes('kafka')) sourceType = 'Kafka Topic';
+  else if (content.includes('redis')) sourceType = 'Redis Cache';
+  else if (content.includes('elasticsearch'))
+    sourceType = 'Elasticsearch Index';
+  else if (
+    content.includes('file') ||
+    content.includes('csv') ||
+    content.includes('json')
+  )
+    sourceType = 'File System';
+
+  // Common destination patterns
+  let destinationType = 'Data Destination';
+  if (content.includes('snowflake')) destinationType = 'Snowflake Warehouse';
+  else if (content.includes('bigquery') || content.includes('gcp'))
+    destinationType = 'BigQuery Dataset';
+  else if (content.includes('redshift')) destinationType = 'Redshift Cluster';
+  else if (content.includes('databricks'))
+    destinationType = 'Databricks Lakehouse';
+  else if (
+    content.includes('mysql') ||
+    content.includes('postgresql') ||
+    content.includes('database')
+  )
+    destinationType = 'Database';
+  else if (content.includes('api') || content.includes('rest'))
+    destinationType = 'API Endpoint';
+  else if (content.includes('s3') || content.includes('bucket'))
+    destinationType = 'S3 Bucket';
+  else if (content.includes('mongodb')) destinationType = 'MongoDB Collection';
+  else if (content.includes('kafka')) destinationType = 'Kafka Topic';
+  else if (content.includes('elasticsearch'))
+    destinationType = 'Elasticsearch Index';
+  else if (content.includes('warehouse')) destinationType = 'Data Warehouse';
+
+  return { sourceType, destinationType };
+};
+
+// Create a simple hardcoded workflow structure with dynamic names
+const createHardcodedWorkflow = (
+  sourceType?: string,
+  destinationType?: string
+) => {
   return {
     nodes: [
       {
         id: 'source-node',
         type: 'source',
-        name: 'Data Source',
+        name: sourceType || 'Data Source',
         status: 'pending',
         config: {},
         data_requirements: {
@@ -152,7 +220,7 @@ const createHardcodedWorkflow = () => {
       {
         id: 'destination-node',
         type: 'destination',
-        name: 'Data Destination',
+        name: destinationType || 'Data Destination',
         status: 'pending',
         config: {},
         data_requirements: {
@@ -245,12 +313,22 @@ export const processMessage = async (
 ): Promise<Message> => {
   const groqClient = new GroqCloudClient();
 
-  // Initialize workflow if it doesn't exist
-  let workflowState =
-    getCurrentWorkflowState(conversationHistory) || createHardcodedWorkflow();
-
   // Check if this is the first message
   const isFirstMessage = conversationHistory.length === 0;
+
+  // Initialize workflow if it doesn't exist
+  let workflowState = getCurrentWorkflowState(conversationHistory);
+
+  if (isFirstMessage) {
+    // Detect service types from the first message
+    const { sourceType, destinationType } = detectServiceTypes(
+      currentMessage.content
+    );
+    workflowState = createHardcodedWorkflow(sourceType, destinationType);
+  } else if (!workflowState) {
+    // Fallback if no workflow state found
+    workflowState = createHardcodedWorkflow();
+  }
 
   // Get next field to ask for
   const nextField = getNextField(workflowState);
@@ -262,13 +340,16 @@ export const processMessage = async (
   let updatedWorkflowState = workflowState;
 
   if (isFirstMessage) {
-    // First message - greet and explain
+    // First message - greet and explain with detected services
+    const sourceName = workflowState.nodes[0].name;
+    const destinationName = workflowState.nodes[2].name;
+
     responseMessage = `👋 Hello! I'm here to help you configure your data pipeline workflow.
 
 I'll guide you through setting up a complete data flow with three main components:
-1. **Data Source** - where your data comes from
+1. **${sourceName}** - where your data comes from
 2. **Data Transform** - how we process the data
-3. **Data Destination** - where the processed data goes
+3. **${destinationName}** - where the processed data goes
 
 Let me start by asking about your data source. What type of data source are you using?
 

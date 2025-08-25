@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import type { Message as MessageType } from '@/types';
 import { AlertCircle, Brain, RotateCcw, User } from 'lucide-react';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 
 interface MessageProps {
@@ -23,8 +24,8 @@ export default function Message({
   switch (message.type) {
     case 'MESSAGE':
       messageStyle = isUser
-        ? 'bg-background text-foreground shadow-sm border border-border'
-        : 'bg-primary text-primary-foreground';
+        ? 'bg-background text-foreground shadow-sm border border-border hover:shadow-md hover:border-border/80'
+        : 'bg-primary text-primary-foreground hover:bg-primary/95';
       icon = isUser ? (
         <User className="w-4 h-4" />
       ) : (
@@ -32,7 +33,7 @@ export default function Message({
       );
       break;
     case 'ERROR':
-      messageStyle = 'bg-red-50 text-red-800 border border-red-200';
+      messageStyle = 'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100';
       icon = <AlertCircle className="w-4 h-4" />;
       break;
     default:
@@ -40,29 +41,46 @@ export default function Message({
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        duration: 0.3, 
+        ease: [0.25, 0.46, 0.45, 0.94],
+        delay: isLastMessage ? 0.1 : 0
+      }}
       className={`flex space-x-3 items-start ${
         isUser ? 'justify-end' : 'justify-start'
       }`}
     >
       {!isUser && (
-        <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+        <motion.div 
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200"
+        >
           <Brain className="w-4 h-4 text-primary-foreground" />
-        </div>
+        </motion.div>
       )}
 
       <div
         className={`flex flex-col max-w-xs ${isUser ? 'items-end' : 'items-start'}`}
       >
-        <div
-          className={`text-xs mb-1 ${
+        <motion.div
+          initial={{ opacity: 0, x: isUser ? 10 : -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className={`text-xs mb-1 font-medium ${
             isUser ? 'text-slate-400 text-right' : 'text-primary text-left'
           }`}
         >
           {isUser ? 'You' : 'Nexla'}
-        </div>
-        <div
-          className={`w-full px-4 py-2 ${messageStyle} relative ${
+        </motion.div>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className={`w-full px-4 py-2 ${messageStyle} relative transition-all duration-200 ${
             isUser
               ? 'rounded-l-lg rounded-br-lg' // Sharp edge on right bottom for user
               : 'rounded-r-lg rounded-bl-lg' // Sharp edge on left bottom for AI
@@ -78,25 +96,35 @@ export default function Message({
 
           {/* Retry button for error messages - only show on last error message */}
           {message.type === 'ERROR' && onRetry && isLastMessage && (
-            <div className="absolute -bottom-2 -right-2">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+              className="absolute -bottom-2 -right-2"
+            >
               <Button
                 onClick={onRetry}
                 variant="outline"
                 size="icon"
-                className="w-6 h-6 bg-white hover:bg-red-50 border-red-300 text-red-700 hover:text-red-800 rounded-full shadow-sm"
+                className="w-6 h-6 bg-white hover:bg-red-50 border-red-300 text-red-700 hover:text-red-800 rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110"
               >
                 <RotateCcw className="w-3 h-3" />
               </Button>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {isUser && (
-        <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+        <motion.div 
+          initial={{ scale: 0, rotate: 180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200"
+        >
           <User className="w-4 h-4 text-primary-foreground" />
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
