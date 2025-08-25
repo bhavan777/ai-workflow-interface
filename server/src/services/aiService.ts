@@ -1,74 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
-// File-based conversation store for persistence
-const CONVERSATIONS_DIR = path.join(__dirname, '../../conversations');
-
-// In-memory fallback for production environments
-const inMemoryConversations = new Map<string, Message[]>();
-
-// Ensure conversations directory exists
-if (!fs.existsSync(CONVERSATIONS_DIR)) {
-  try {
-    fs.mkdirSync(CONVERSATIONS_DIR, { recursive: true });
-  } catch (error) {
-    console.warn(
-      '⚠️ Could not create conversations directory, using in-memory storage'
-    );
-  }
-}
-
-const getConversationPath = (conversationId: string): string => {
-  return path.join(CONVERSATIONS_DIR, `${conversationId}.json`);
-};
-
-export const saveConversation = (
-  conversationId: string,
-  messages: Message[]
-): void => {
-  try {
-    // Try file system first
-    const filePath = getConversationPath(conversationId);
-    fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
-  } catch (error) {
-    console.warn('⚠️ File system save failed, using in-memory storage:', error);
-    // Fallback to in-memory storage
-    inMemoryConversations.set(conversationId, messages);
-  }
-};
-
-const loadConversation = (conversationId: string): Message[] | null => {
-  try {
-    // Try file system first
-    const filePath = getConversationPath(conversationId);
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.warn(
-      '⚠️ File system load failed, trying in-memory storage:',
-      error
-    );
-  }
-
-  // Fallback to in-memory storage
-  return inMemoryConversations.get(conversationId) || null;
-};
-
-const deleteConversation = (conversationId: string): boolean => {
-  try {
-    const filePath = getConversationPath(conversationId);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (error) {
-    console.warn('⚠️ File system delete failed:', error);
-  }
-
-  // Also remove from in-memory storage
-  return inMemoryConversations.delete(conversationId);
-};
+// Multi-model AI processing with parallel execution
 
 // Improved Groq Cloud AI client with automatic model fallback
 export class GroqCloudClient {
@@ -208,6 +138,151 @@ export class GroqCloudClient {
 
     // If all models failed, throw the last error
     throw lastError || new Error('All available models failed');
+  }
+
+  // New method for parallel multi-model processing
+  async generateParallelResponse(
+    chatMessages: any[],
+    jsonMessages: any[],
+    options: {
+      chatMaxTokens?: number;
+      jsonMaxTokens?: number;
+      chatTemperature?: number;
+      jsonTemperature?: number;
+      timeout?: number;
+    } = {}
+  ): Promise<{
+    chatResponse: string;
+    jsonResponse: string;
+    chatModel: string;
+    jsonModel: string;
+  }> {
+    const {
+      chatMaxTokens = 3000,
+      jsonMaxTokens = 2000,
+      chatTemperature = 0.7, // Higher for more natural conversation
+      jsonTemperature = 0.1, // Lower for consistent JSON
+      timeout = 15000, // 15 second timeout for parallel calls
+    } = options;
+
+    // Model selection for parallel processing
+    const chatModel = 'llama3-70b-8192'; // Best for conversation
+    const jsonModel = 'llama3-8b-8192'; // Fast and reliable for JSON
+
+    console.log(
+      `🚀 Starting parallel processing with ${chatModel} (chat) and ${jsonModel} (JSON)`
+    );
+
+    // Create both API calls simultaneously
+    const chatPromise = this.makeApiCall(chatModel, chatMessages, {
+      max_tokens: chatMaxTokens,
+      temperature: chatTemperature,
+    });
+
+    const jsonPromise = this.makeApiCall(jsonModel, jsonMessages, {
+      max_tokens: jsonMaxTokens,
+      temperature: jsonTemperature,
+    });
+
+    try {
+      // Wait for both calls with timeout
+      const [chatResult, jsonResult] = await Promise.race([
+        Promise.all([chatPromise, jsonPromise]),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Parallel processing timeout')),
+            timeout
+          )
+        ),
+      ]);
+
+      console.log(`✅ Parallel processing completed successfully`);
+      console.log(
+        `  - Chat response: ${chatResult.content.length} chars from ${chatResult.model}`
+      );
+      console.log(
+        `  - JSON response: ${jsonResult.content.length} chars from ${jsonResult.model}`
+      );
+
+      return {
+        chatResponse: chatResult.content,
+        jsonResponse: jsonResult.content,
+        chatModel: chatResult.model,
+        jsonModel: jsonResult.model,
+      };
+    } catch (error) {
+      console.warn(
+        `⚠️ Parallel processing failed, falling back to single model:`,
+        error
+      );
+
+      // Fallback to single model approach
+      const fallbackMessages = [...chatMessages];
+      if (jsonMessages.length > 0) {
+        // Merge JSON requirements into chat messages
+        const lastJsonMessage = jsonMessages[jsonMessages.length - 1];
+        fallbackMessages.push({
+          role: 'user',
+          content: `Also generate the workflow JSON structure: ${lastJsonMessage.content}`,
+        });
+      }
+
+      const fallbackResponse = await this.generateResponse(fallbackMessages, {
+        maxTokens: Math.max(chatMaxTokens, jsonMaxTokens),
+        temperature: 0.3, // Balanced temperature
+      });
+
+      return {
+        chatResponse: fallbackResponse,
+        jsonResponse: fallbackResponse, // Will be extracted later
+        chatModel: 'llama3-70b-8192 (fallback)',
+        jsonModel: 'llama3-70b-8192 (fallback)',
+      };
+    }
+  }
+
+  // Helper method for making individual API calls
+  private async makeApiCall(
+    model: string,
+    messages: any[],
+    options: {
+      max_tokens: number;
+      temperature: number;
+    }
+  ): Promise<{ content: string; model: string }> {
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        max_tokens: options.max_tokens,
+        temperature: options.temperature,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as any;
+      throw new Error(
+        `API call failed for ${model}: ${errorData.error?.message || 'Unknown error'}`
+      );
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error(`No content received from ${model}`);
+    }
+
+    return { content, model };
   }
 }
 
@@ -752,43 +827,43 @@ const getFieldExample = (fieldName: string, nodeType: string): string => {
       fieldNameLower.includes('store_url') ||
       fieldNameLower.includes('url')
     ) {
-      return 'https://mystore.myshopify.com';
+      return 'https://your-store.myshopify.com';
     } else if (fieldNameLower.includes('api_key')) {
-      return 'sk_test_123456789abcdef';
+      return 'your_shopify_api_key_here';
     } else if (
       fieldNameLower.includes('api_secret') ||
       fieldNameLower.includes('secret')
     ) {
-      return 'shpss_987654321fedcba';
+      return 'your_shopify_secret_here';
     } else if (fieldNameLower.includes('host')) {
-      return 'localhost:5432';
+      return 'your-db-host.com:5432';
     } else if (fieldNameLower.includes('database')) {
-      return 'my_database';
+      return 'your_database_name';
     } else if (fieldNameLower.includes('connection_string')) {
-      return 'postgresql://user:pass@host:5432/db';
+      return 'postgresql://username:password@host:5432/database';
     } else if (fieldNameLower.includes('file_path')) {
-      return '/path/to/data.csv';
+      return '/path/to/your/data.csv';
     } else if (fieldNameLower.includes('delimiter')) {
       return ',';
     } else if (fieldNameLower.includes('encoding')) {
       return 'UTF-8';
     } else if (fieldNameLower.includes('base_url')) {
-      return 'https://api.example.com';
+      return 'https://api.your-service.com';
     } else if (fieldNameLower.includes('auth_method')) {
       return 'Bearer Token';
     } else if (fieldNameLower.includes('endpoint')) {
-      return '/v1/data';
+      return '/v1/your-endpoint';
     }
   }
 
   // Transform node examples
   if (nodeType === 'data transformation') {
     if (fieldNameLower.includes('operation_type')) {
-      return 'aggregate, filter, join, or transform';
+      return 'aggregate, filter, join, transform, or enrich';
     } else if (fieldNameLower.includes('parameters')) {
-      return 'group by product_id, sum(sales_amount)';
+      return 'group by product_id, sum(sales_amount), filter by date >= 2024-01-01';
     } else if (fieldNameLower.includes('output_format')) {
-      return 'JSON, CSV, or Parquet';
+      return 'JSON, CSV, Parquet, or Avro';
     }
   }
 
@@ -798,17 +873,23 @@ const getFieldExample = (fieldName: string, nodeType: string): string => {
       fieldNameLower.includes('account_url') ||
       fieldNameLower.includes('url')
     ) {
-      return 'https://myaccount.snowflakecomputing.com';
+      return 'https://your-account.snowflakecomputing.com';
     } else if (fieldNameLower.includes('username')) {
-      return 'admin';
+      return 'your_snowflake_username';
     } else if (fieldNameLower.includes('password')) {
-      return 'secure_password_123';
+      return 'your_secure_password';
     } else if (fieldNameLower.includes('bucket')) {
-      return 'my-data-bucket';
+      return 'your-data-bucket-name';
     } else if (fieldNameLower.includes('table')) {
-      return 'sales_data';
+      return 'your_table_name';
     } else if (fieldNameLower.includes('sheet')) {
-      return 'Sales Report';
+      return 'Your Sheet Name';
+    } else if (fieldNameLower.includes('warehouse')) {
+      return 'COMPUTE_WH';
+    } else if (fieldNameLower.includes('database')) {
+      return 'YOUR_DATABASE';
+    } else if (fieldNameLower.includes('schema')) {
+      return 'YOUR_SCHEMA';
     }
   }
 
@@ -816,15 +897,21 @@ const getFieldExample = (fieldName: string, nodeType: string): string => {
   if (fieldNameLower.includes('username')) {
     return 'your_username';
   } else if (fieldNameLower.includes('password')) {
-    return 'your_password';
+    return 'your_secure_password';
   } else if (fieldNameLower.includes('key')) {
     return 'your_api_key';
   } else if (fieldNameLower.includes('secret')) {
     return 'your_secret_key';
   } else if (fieldNameLower.includes('url')) {
-    return 'https://example.com';
+    return 'https://your-service.com';
   } else if (fieldNameLower.includes('path')) {
-    return '/path/to/file';
+    return '/path/to/your/file';
+  } else if (fieldNameLower.includes('token')) {
+    return 'your_access_token';
+  } else if (fieldNameLower.includes('client_id')) {
+    return 'your_client_id';
+  } else if (fieldNameLower.includes('client_secret')) {
+    return 'your_client_secret';
   }
 
   return 'your_value_here';
@@ -837,28 +924,11 @@ export const processMessage = async (
   jsonRetryCount: number = 0
 ): Promise<Message> => {
   try {
-    console.log('🔄 Starting processMessage with Groq Cloud...');
+    console.log('🔄 Starting multi-model parallel processing...');
     console.log(
       `📚 Conversation history length: ${conversationHistory.length}`
     );
     console.log(`📝 Current message: ${currentMessage.content}`);
-
-    // Log the last few messages for debugging
-    const recentMessages = conversationHistory.slice(-5);
-    console.log('📋 Recent conversation history:');
-    recentMessages.forEach((msg, index) => {
-      console.log(
-        `  ${index + 1}. [${msg.role}] ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`
-      );
-    });
-
-    // Log current workflow state
-    const currentWorkflowState = getCurrentWorkflowState(conversationHistory);
-    console.log(
-      '🔧 Current workflow state:',
-      JSON.stringify(currentWorkflowState, null, 2)
-    );
-    console.log('📝 Current message content:', currentMessage.content);
 
     // Check if API key is available
     if (!process.env.GROQ_API_KEY) {
@@ -888,9 +958,9 @@ export const processMessage = async (
       };
     }
 
-    sendThought?.('🤔 Understanding your workflow requirements...');
+    sendThought?.('🔍 Analyzing your workflow requirements...');
 
-    // Get current workflow state for context - always ensure we have a complete state
+    // Get current workflow state for context
     let existingWorkflowState = getCurrentWorkflowState(conversationHistory);
 
     // If no existing state, create initial state
@@ -901,7 +971,7 @@ export const processMessage = async (
       existingWorkflowState = createInitialWorkflowState();
     }
 
-    // Convert conversation history to AI format - limit to last 5 messages to reduce tokens
+    // Convert conversation history to AI format - limit to last 5 messages
     const recentHistory = conversationHistory.slice(-5);
     const aiMessages = recentHistory.map(msg => ({
       role: msg.role,
@@ -930,18 +1000,6 @@ export const processMessage = async (
       nextDataPoint
     );
 
-    // Debug logging for workflow greeting (commented out to reduce log rate)
-    // console.log('🔍 Workflow greeting debug:');
-    // console.log('  - Is starting workflow:', isStartingWorkflowNow);
-    // console.log('  - Is starting node:', isStartingNode);
-    // console.log('  - Is completing node:', isCompletingCurrentNode);
-    // console.log(
-    //   '  - Next data point:',
-    //   nextDataPoint
-    //     ? `${nextDataPoint.nodeName} - ${nextDataPoint.fieldName}`
-    //     : 'None'
-    // );
-
     let transitionInfo = '';
     if (nextDataPoint) {
       const nodeType = getCurrentNodeType(nextDataPoint.nodeId);
@@ -962,207 +1020,252 @@ export const processMessage = async (
         '\n\nWORKFLOW STATUS: All data points collected. Workflow is complete.';
     }
 
-    // ALWAYS send current workflow state to AI so it knows exactly what needs to be updated
-    aiMessages.push({
-      role: 'user' as const,
-      content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. CRITICAL: You MUST include the complete nodes and connections in your response, even if they haven't changed. Maintain the same structure and only update what has changed. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`".${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
-    });
+    // Prepare chat messages (conversation-focused)
+    const chatMessages = [
+      {
+        role: 'system' as const,
+        content: `You are a senior data integration consultant with 15+ years of experience. You're helping a senior engineer build a data pipeline workflow.
 
-    // Add system prompt as first message
-    const systemMessage = { role: 'system' as const, content: SYSTEM_PROMPT };
-    const allMessages = [systemMessage, ...aiMessages];
+PERSONALITY & TONE:
+- Professional, confident, and technically precise
+- Respectful of the user's engineering expertise
+- Enthusiastic about solving complex data problems
+- Clear, concise, and actionable guidance
+- No condescending explanations - assume technical competence
 
-    // Reduced logging to prevent rate limiting
-    // console.log(
-    //   '🤖 System prompt being sent (first 1000 chars):',
-    //   SYSTEM_PROMPT.substring(0, 1000)
-    // );
-    // console.log('🔄 Force rebuild timestamp:', new Date().toISOString());
-    // console.log('📝 Total messages being sent:', allMessages.length);
+COMMUNICATION STYLE:
+- Use markdown formatting for beautiful, structured responses
+- Be direct and efficient - senior engineers appreciate brevity
+- Provide context when relevant, but don't over-explain basics
+- Use technical terminology appropriately
+- Maintain a collaborative, problem-solving approach
 
-    console.log('📤 Sending to Groq Cloud...');
-    sendThought?.('💭 Building your workflow structure...');
+WORKFLOW GUIDANCE:
+- Guide the user through the workflow step-by-step
+- Ask for exactly ONE piece of information at a time
+- Provide clear, practical examples for each field
+- Acknowledge progress and transitions between workflow stages
+- Be proactive about next steps
 
-    // Send to Groq Cloud with timeout
-    const result = await Promise.race([
-      groqClient.generateResponse(allMessages),
+FORMATTING REQUIREMENTS:
+- Use **bold** for emphasis and important information
+- Use \`code\` for field names, examples, and technical terms
+- Use > blockquotes for examples and sample data
+- Use proper spacing and line breaks for readability
+- Every question MUST include "> **Example:** \`[sample example]\`"
+
+GREETING & TRANSITIONS:
+- Welcome messages should be warm but professional
+- Acknowledge the user's technical expertise
+- Provide clear context about what we're building
+- Transition smoothly between workflow stages
+- Celebrate completion of each stage
+
+Remember: You're working with a senior engineer who values efficiency, precision, and technical depth.`,
+      },
+      ...aiMessages,
+      {
+        role: 'user' as const,
+        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`".${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+      },
+    ];
+
+    // Prepare JSON messages (structure-focused)
+    const jsonMessages = [
+      {
+        role: 'system' as const,
+        content: `You are a JSON structure maintenance expert. Your job is to maintain and update a consistent workflow JSON structure.
+
+CRITICAL RULES:
+1. NEVER change the field structure once established
+2. NEVER add or remove fields from data_requirements
+3. ONLY update the values within existing fields
+4. Maintain the exact same node IDs and connection IDs
+5. Preserve all existing field names in required_fields arrays
+
+JSON STRUCTURE (MUST MAINTAIN CONSISTENCY):
+{
+  "message": "string", // The conversational message from chat model
+  "nodes": [
+    {
+      "id": "source-node", // NEVER CHANGE
+      "type": "source",
+      "name": "string", // Can update based on service
+      "status": "pending|partial|complete",
+      "config": {}, // Always empty
+      "data_requirements": {
+        "required_fields": ["field1", "field2", "field3"], // NEVER CHANGE ONCE SET
+        "provided_fields": ["field1"], // Update as user provides data
+        "missing_fields": ["field2", "field3"] // Update as user provides data
+      }
+    },
+    {
+      "id": "transform-node", // NEVER CHANGE
+      "type": "transform",
+      "name": "string",
+      "status": "pending|partial|complete",
+      "config": {},
+      "data_requirements": {
+        "required_fields": ["operation_type", "parameters", "output_format"], // NEVER CHANGE
+        "provided_fields": [],
+        "missing_fields": ["operation_type", "parameters", "output_format"]
+      }
+    },
+    {
+      "id": "destination-node", // NEVER CHANGE
+      "type": "destination",
+      "name": "string",
+      "status": "pending|partial|complete",
+      "config": {},
+      "data_requirements": {
+        "required_fields": ["field1", "field2", "field3"], // NEVER CHANGE ONCE SET
+        "provided_fields": [],
+        "missing_fields": ["field1", "field2", "field3"]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn1", // NEVER CHANGE
+      "source": "source-node",
+      "target": "transform-node",
+      "status": "pending|complete|error"
+    },
+    {
+      "id": "conn2", // NEVER CHANGE
+      "source": "transform-node",
+      "target": "destination-node",
+      "status": "pending|complete|error"
+    }
+  ],
+  "workflow_complete": false
+}
+
+UPDATE LOGIC:
+- When user provides a field value, move it from missing_fields to provided_fields
+- Update node status: pending → partial (1-2 fields) → complete (all fields)
+- Update connection status when both connected nodes are complete
+- Set workflow_complete to true when all nodes are complete
+
+RESPONSE FORMAT:
+- Respond with ONLY valid JSON
+- No text before or after
+- No explanations
+- Just the JSON object
+
+Remember: CONSISTENCY IS KEY. Never change the structure, only update the values.`,
+      },
+      {
+        role: 'user' as const,
+        content: `Update the workflow JSON structure based on this conversation and current state. Maintain field consistency - do not change required_fields once set.\n\nCURRENT STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}\n\nUSER MESSAGE: ${currentMessage.content}\n\n${transitionInfo}\n\nCRITICAL: Only update values, never change the field structure.`,
+      },
+    ];
+
+    console.log('📤 Starting parallel processing...');
+    sendThought?.('🏗️ Structuring your data pipeline...');
+
+    // Use parallel processing with both models
+    const parallelResult = await Promise.race([
+      groqClient.generateParallelResponse(chatMessages, jsonMessages),
       new Promise<never>(
         (_, reject) =>
-          setTimeout(() => reject(new Error('Groq Cloud API timeout')), 60000) // 60 seconds timeout
+          setTimeout(
+            () => reject(new Error('Parallel processing timeout')),
+            30000
+          ) // 30 seconds timeout
       ),
     ]);
 
-    console.log('✅ Groq Cloud response received');
-    const content = result;
+    console.log('✅ Parallel processing completed');
+    console.log(`  - Chat model: ${parallelResult.chatModel}`);
+    console.log(`  - JSON model: ${parallelResult.jsonModel}`);
 
-    if (!content) {
-      throw new Error('No response from Groq Cloud');
-    }
+    sendThought?.('✅ Validating workflow configuration...');
 
-    // Reduced logging to prevent rate limiting
-    // console.log('📄 Raw Groq Cloud content:', content);
-    // console.log('📄 Content length:', content.length);
-    // console.log('📄 First 200 chars:', content.substring(0, 200));
+    // Extract chat response
+    const chatResponse = parallelResult.chatResponse;
 
-    sendThought?.('🔍 Validating your workflow...');
-
-    // Try to extract JSON from the response
-    let jsonContent = content;
+    // Try to extract JSON from the JSON model response
+    let jsonContent = parallelResult.jsonResponse;
 
     // Remove markdown code blocks if present
-    if (content.includes('```json')) {
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonContent.includes('```json')) {
+      const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonContent = jsonMatch[1].trim();
       }
-    } else if (content.includes('```')) {
-      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+    } else if (jsonContent.includes('```')) {
+      const jsonMatch = jsonContent.match(/```\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonContent = jsonMatch[1].trim();
       }
     }
-
-    // Clean up the JSON content - handle newlines in message field properly
-    // First, try to find the JSON structure and handle newlines in string values
-    try {
-      // Look for the message field and properly escape newlines
-      jsonContent = jsonContent.replace(
-        /"message":\s*"([^"]*(?:\\.[^"]*)*)"/g,
-        (match, messageContent) => {
-          const escapedMessage = messageContent
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r')
-            .replace(/"/g, '\\"');
-          return `"message": "${escapedMessage}"`;
-        }
-      );
-    } catch (error) {
-      // If regex fails, fall back to simple replacement
-      console.log('⚠️ JSON cleanup failed, using fallback method');
-    }
-
-    // console.log('🔍 Attempting to parse JSON:', jsonContent);
 
     // Try to parse the JSON
     let parsed;
     try {
       parsed = JSON.parse(jsonContent);
-      console.log('✅ JSON parsed successfully');
-      console.log('📋 Parsed content:', JSON.stringify(parsed, null, 2));
+      console.log('✅ JSON parsed successfully from dedicated model');
     } catch (parseError) {
-      console.error('❌ Failed to parse JSON response:', parseError);
-      console.log('📄 Attempted to parse:', jsonContent);
+      console.error(
+        '❌ Failed to parse JSON from dedicated model:',
+        parseError
+      );
 
-      // Try to repair common JSON issues
-      let repairedJson = jsonContent;
+      // If JSON model failed, try to extract from chat response as fallback
+      console.log('🔄 Falling back to chat response for JSON extraction...');
 
-      // Remove any text before the first {
-      const firstBrace = repairedJson.indexOf('{');
-      if (firstBrace > 0) {
-        repairedJson = repairedJson.substring(firstBrace);
+      let fallbackJsonContent = chatResponse;
+      if (fallbackJsonContent.includes('```json')) {
+        const jsonMatch = fallbackJsonContent.match(
+          /```json\s*([\s\S]*?)\s*```/
+        );
+        if (jsonMatch) {
+          fallbackJsonContent = jsonMatch[1].trim();
+        }
+      } else if (fallbackJsonContent.includes('```')) {
+        const jsonMatch = fallbackJsonContent.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          fallbackJsonContent = jsonMatch[1].trim();
+        }
       }
-
-      // Remove any text after the last }
-      const lastBrace = repairedJson.lastIndexOf('}');
-      if (lastBrace > 0 && lastBrace < repairedJson.length - 1) {
-        repairedJson = repairedJson.substring(0, lastBrace + 1);
-      }
-
-      // Try to fix common syntax errors
-      repairedJson = repairedJson
-        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
-        .replace(
-          /([a-zA-Z0-9_]+):\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])/g,
-          '"$1": "$2"$3'
-        ) // Add quotes to unquoted values
-        .replace(
-          /([a-zA-Z0-9_]+):\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])/g,
-          '"$1": "$2"'
-        ); // Add quotes to last unquoted values
-
-      console.log('🔧 Attempting to repair JSON:', repairedJson);
-      sendThought?.('🔧 Fixing the response...');
 
       try {
-        parsed = JSON.parse(repairedJson);
-        console.log('✅ JSON repaired and parsed successfully');
-        console.log('📋 Repaired content:', JSON.stringify(parsed, null, 2));
-      } catch (repairError) {
-        console.error('❌ Failed to repair JSON:', repairError);
-
-        // Check if we've exceeded the retry limit (max 3 attempts)
-        if (jsonRetryCount >= 3) {
-          console.error(
-            '❌ Max JSON retry attempts reached, falling back gracefully'
-          );
-
-          // Send a final thought message to inform the user
-          sendThought?.('😔 Having trouble with this request...');
-
-          // Return a graceful error response
-          return {
-            id: generateId(),
-            response_to: currentMessage.id,
-            role: 'assistant',
-            type: 'ERROR',
-            content:
-              "I'm having trouble processing your request due to a technical issue. Please try again in a moment, or rephrase your request.",
-            timestamp: new Date().toISOString(),
-          };
-        }
-
-        // Send the invalid JSON back to the AI to fix it
-        console.log(
-          `🔄 JSON retry attempt ${jsonRetryCount + 1}/3 - asking AI to fix invalid JSON`
+        parsed = JSON.parse(fallbackJsonContent);
+        console.log('✅ JSON extracted from chat response as fallback');
+      } catch (fallbackError) {
+        console.error(
+          '❌ Failed to extract JSON from chat response:',
+          fallbackError
         );
 
-        // Send user-friendly thought messages based on retry attempt
-        const retryMessages = [
-          '🔄 Rephrasing the response...',
-          '💡 Trying a different approach...',
-          '✨ Almost there...',
-        ];
-
-        const thoughtMessage =
-          retryMessages[jsonRetryCount] || '🤔 Let me think about this...';
-        sendThought?.(thoughtMessage);
-
-        // Create a message asking the AI to fix the JSON
-        const fixJsonMessage: Message = {
-          id: generateId(),
-          role: 'user',
-          type: 'MESSAGE',
-          content: `The JSON response you provided is invalid and couldn't be parsed. Please fix the JSON syntax and respond with valid JSON. Here's what you sent: \`\`\`json\n${jsonContent}\n\`\`\`\n\nPlease provide a corrected JSON response.`,
-          timestamp: new Date().toISOString(),
+        // If both failed, create a basic response structure
+        console.log('🔄 Creating basic response structure...');
+        parsed = {
+          message: chatResponse,
+          nodes:
+            existingWorkflowState.nodes || createInitialWorkflowState().nodes,
+          connections:
+            existingWorkflowState.connections ||
+            createInitialWorkflowState().connections,
+          workflow_complete: false,
         };
-
-        // Add the fix request to conversation history
-        const updatedHistory = [...conversationHistory, fixJsonMessage];
-
-        // Recursively call processMessage with the fix request
-        return await processMessage(
-          updatedHistory,
-          fixJsonMessage,
-          sendThought,
-          jsonRetryCount + 1
-        );
       }
     }
 
     // Validate the response structure
     if (!parsed.message) {
-      throw new Error('Invalid response structure - missing message');
+      parsed.message = chatResponse; // Use chat response as message
     }
 
-    console.log('🔍 Parsed response structure:');
+    console.log('🔍 Response structure:');
     console.log('  - Has message:', !!parsed.message);
     console.log('  - Has nodes:', !!parsed.nodes);
     console.log('  - Has connections:', !!parsed.connections);
     console.log('  - Nodes count:', parsed.nodes?.length || 0);
 
-    // Since we're sending current state to AI, we can trust its response
+    // Ensure all nodes are present
     if (parsed.nodes && Array.isArray(parsed.nodes)) {
-      // Only ensure all 3 nodes are present if some are missing
       if (parsed.nodes.length < 3) {
         parsed.nodes = ensureAllNodesPresent(parsed.nodes);
       }
@@ -1172,10 +1275,9 @@ export const processMessage = async (
       );
     }
 
-    sendThought?.('✨ Perfect! I have what you need.');
+    sendThought?.('🎯 Workflow configuration ready.');
 
-    // CRITICAL: Always ensure we have the complete workflow state
-    // If AI didn't provide nodes/connections, use existing state but ensure all nodes are present
+    // Merge with existing workflow state
     const updatedNodes = parsed.nodes
       ? mergeNodesData(existingWorkflowState.nodes || [], parsed.nodes)
       : ensureAllNodesPresent(existingWorkflowState.nodes || []);
@@ -1196,30 +1298,26 @@ export const processMessage = async (
         },
       ];
 
-    // Check if workflow is complete based on all nodes being complete
+    // Check if workflow is complete
     const workflowComplete = isWorkflowComplete(updatedNodes || []);
 
-    // Convert AI response back to our message format
+    // Create the final response
     const response: Message = {
       id: generateId(),
       response_to: currentMessage.id,
       role: 'assistant',
       type: 'MESSAGE',
       content: parsed.message,
-      message_type: 'markdown', // AI messages are formatted with markdown
+      message_type: 'markdown',
       timestamp: new Date().toISOString(),
+      nodes: updatedNodes,
+      connections: updatedConnections,
+      workflow_complete: workflowComplete,
     };
-
-    // ALWAYS include the complete updated workflow state
-    response.nodes = updatedNodes;
-    response.connections = updatedConnections;
-
-    // Set workflow completion status
-    response.workflow_complete = workflowComplete;
 
     return response;
   } catch (error: any) {
-    console.error('💥 Error calling Groq Cloud:', error);
+    console.error('💥 Error in multi-model processing:', error);
 
     // Return a graceful error response
     return {
@@ -1238,30 +1336,9 @@ const formatMessageForAI = (message: Message): string => {
   return message.content; // Just the text content
 };
 
-// Helper function to get conversation history (for debugging)
-export const getConversationHistory = (
-  conversationId: string
-): Message[] | null => {
-  return loadConversation(conversationId);
-};
-
-// Function to clear all conversations
+// Function to clear all conversations (in-memory only)
 export const clearAllConversations = (): void => {
-  try {
-    // Clear file system conversations
-    const files = fs.readdirSync(CONVERSATIONS_DIR);
-    files.forEach(file => {
-      if (file.endsWith('.json')) {
-        fs.unlinkSync(path.join(CONVERSATIONS_DIR, file));
-      }
-    });
-  } catch (error) {
-    console.warn('⚠️ Could not clear file system conversations:', error);
-  }
-
-  // Clear in-memory conversations
-  inMemoryConversations.clear();
-  console.log('✅ All conversations cleared (file system + memory)');
+  console.log('✅ All conversations cleared (in-memory only)');
 };
 
 // Export helper functions for testing

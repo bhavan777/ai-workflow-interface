@@ -1,9 +1,5 @@
 import { WebSocket } from 'ws';
-import {
-  getConversationHistory,
-  processMessage,
-  saveConversation,
-} from './services/aiService';
+import { processMessage } from './services/aiService';
 
 // Helper function for adding delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -11,13 +7,6 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Helper function to generate unique IDs
 const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
-// Helper function to generate conversation ID
-const generateConversationId = (): string => {
-  return (
-    'conv_' + Date.now().toString(36) + Math.random().toString(36).substr(2)
-  );
 };
 
 export interface Message {
@@ -54,8 +43,8 @@ export interface DataFlowConnection {
   status: 'pending' | 'complete' | 'error';
 }
 
-// Store conversation IDs for each WebSocket connection
-const conversationIds = new WeakMap<WebSocket, string>();
+// Store conversation history for each WebSocket connection (in-memory only)
+const conversationHistories = new WeakMap<WebSocket, Message[]>();
 
 export const handleWebSocketConnection = (ws: WebSocket) => {
   console.log('🔌 New WebSocket connection established');
@@ -82,8 +71,8 @@ export const handleWebSocketConnection = (ws: WebSocket) => {
 
   ws.on('close', () => {
     console.log('🔌 WebSocket connection closed');
-    // Clean up conversation ID when connection closes
-    conversationIds.delete(ws);
+    // Clean up conversation history when connection closes
+    conversationHistories.delete(ws);
   });
 
   ws.on('error', error => {
@@ -93,15 +82,10 @@ export const handleWebSocketConnection = (ws: WebSocket) => {
 
 const handleMessage = async (ws: WebSocket, message: Message) => {
   try {
-    // Get or create conversation ID for this WebSocket connection
-    let conversationId = conversationIds.get(ws);
-    if (!conversationId) {
-      conversationId = generateConversationId();
-      conversationIds.set(ws, conversationId);
-      console.log('🆔 Created new conversation ID:', conversationId);
-    }
+    // Get or create conversation history for this WebSocket connection
+    let conversationHistory = conversationHistories.get(ws) || [];
 
-    // Send processing status (no nodes/connections needed)
+    // Send processing status
     ws.send(
       JSON.stringify({
         id: generateId(),
@@ -116,21 +100,18 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     // Add initial delay before first thought
     await delay(500);
 
-    // Send thought before processing (no nodes/connections needed)
+    // Send thought before processing
     ws.send(
       JSON.stringify({
         id: generateId(),
         role: 'assistant',
         type: 'THOUGHT',
-        content: '🤔 Let me understand what you need...',
+        content: '🔍 Analyzing your workflow requirements...',
         timestamp: new Date().toISOString(),
       })
     );
 
-    // Get conversation history for this session
-    let conversationHistory = getConversationHistory(conversationId) || [];
-
-    // If this is a new workflow request (first message or workflow-related), clear history
+    // If this is a new workflow request, clear history
     const isNewWorkflow =
       conversationHistory.length === 0 ||
       message.content.toLowerCase().includes('shopify') ||
@@ -142,15 +123,13 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
     if (isNewWorkflow && conversationHistory.length > 0) {
       console.log('🔄 Starting new workflow - clearing conversation history');
       conversationHistory = [];
-      // Clear the saved conversation
-      saveConversation(conversationId, []);
     }
 
     console.log(
-      `📚 Loaded conversation history (${conversationHistory.length} messages) for conversation: ${conversationId}`
+      `📚 Using conversation history (${conversationHistory.length} messages)`
     );
 
-    // Process the message
+    // Process the message with multi-model approach
     const response = await processMessage(
       conversationHistory,
       message,
@@ -158,7 +137,7 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
         // Add delay before each thought for more natural feel
         await delay(300);
 
-        // Send additional thoughts during processing (no nodes/connections needed)
+        // Send additional thoughts during processing
         ws.send(
           JSON.stringify({
             id: generateId(),
@@ -171,11 +150,11 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
       }
     );
 
-    // Save the conversation with both user message and assistant response
+    // Update conversation history in memory
     const updatedConversation = [...conversationHistory, message, response];
-    saveConversation(conversationId, updatedConversation);
+    conversationHistories.set(ws, updatedConversation);
     console.log(
-      `💾 Saved conversation (${updatedConversation.length} messages) for conversation: ${conversationId}`
+      `💾 Updated conversation history (${updatedConversation.length} messages)`
     );
 
     // Add final delay before sending result
