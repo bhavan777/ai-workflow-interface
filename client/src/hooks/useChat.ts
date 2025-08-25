@@ -18,6 +18,8 @@ export const useChat = () => {
     setError,
     clearMessages,
     addUserMessage,
+    addDummyAssistantMessage,
+    updateLastAssistantMessage,
     setNodeData,
     setNodeDataLoading,
     setNodeDataError,
@@ -81,6 +83,8 @@ export const useChat = () => {
     nodeDataLoading,
     nodeDataError,
     addUserMessage,
+    addDummyAssistantMessage,
+    updateLastAssistantMessage,
     clearConversation,
     setLoadingState,
     // Expose store actions for direct use

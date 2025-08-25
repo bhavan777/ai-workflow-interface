@@ -1,5 +1,5 @@
 import type { DataFlowConnection, DataFlowNode } from '@/types';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Edge, EdgeMarkerType, Node, NodeTypes } from 'reactflow';
 import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -18,56 +18,19 @@ const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
 };
 
-export default function WorkflowFlow({
-  currentWorkflow,
-  onNodeClick,
-}: WorkflowFlowProps) {
+function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
   const reactFlowRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(800);
-  const [containerHeight, setContainerHeight] = useState(600);
-  const [isResizing, setIsResizing] = useState(false);
 
-  // Effect to update container dimensions on resize
-  useEffect(() => {
-    const updateContainerDimensions = () => {
-      if (containerRef.current) {
-        const newWidth = containerRef.current.offsetWidth;
-        const newHeight = containerRef.current.offsetHeight;
-        setContainerWidth(newWidth);
-        setContainerHeight(newHeight);
-      }
-    };
+  // Stabilize the onNodeClick function to prevent unnecessary re-renders
+  const stableOnNodeClick = useCallback(
+    (nodeId: string) => {
+      onNodeClick?.(nodeId);
+    },
+    [onNodeClick]
+  );
 
-    // Initial measurement
-    updateContainerDimensions();
-
-    // Add resize listener with debouncing
-    let resizeTimeout: number;
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateContainerDimensions, 100);
-    };
-
-    // Use ResizeObserver for more accurate container size changes
-    let resizeObserver: ResizeObserver | null = null;
-    if (containerRef.current && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(handleResize);
-      resizeObserver.observe(containerRef.current);
-    }
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimeout);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-  }, []);
-
-  // Effect to fit view when nodes change or container resizes
+  // Effect to fit view when nodes change
   useEffect(() => {
     if (reactFlowRef.current && currentWorkflow.nodes.length > 0) {
       // Use a longer timeout to ensure DOM updates are complete
@@ -82,57 +45,39 @@ export default function WorkflowFlow({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [currentWorkflow.nodes.length, containerWidth, containerHeight]);
+  }, [currentWorkflow.nodes.length]);
 
-  // Calculate dynamic node positions based on container dimensions
-  const calculateNodePositions = () => {
-    // Responsive node sizing based on container width
-    let nodeWidth: number;
-    let nodeSpacing: number;
-
-    if (containerWidth < 768) {
-      // Mobile: smaller nodes, less spacing
-      nodeWidth = 280;
-      nodeSpacing = 60;
-    } else if (containerWidth < 1024) {
-      // Tablet: medium nodes, medium spacing
-      nodeWidth = 300;
-      nodeSpacing = 80;
-    } else if (containerWidth < 1440) {
-      // Desktop: standard nodes, standard spacing
-      nodeWidth = 320;
-      nodeSpacing = 100;
-    } else {
-      // Large screens: larger nodes, more spacing
-      nodeWidth = 360;
-      nodeSpacing = 120;
-    }
+  // Calculate node positions with fixed dimensions and layout-based responsiveness
+  const calculateNodePositions = useMemo(() => {
+    // Fixed node sizing - no responsive sizing
+    const nodeWidth = 320;
+    const nodeSpacing = 100;
 
     const totalNodes = currentWorkflow.nodes.length;
 
     if (totalNodes === 0) return [];
 
-    // Determine layout direction based on aspect ratio
-    const aspectRatio = containerWidth / containerHeight;
-    const isVerticalLayout = aspectRatio < 1.2; // If width is less than 1.2x height, use vertical layout
+    // Simple layout: use vertical layout for 1-2 nodes, horizontal for 3+ nodes
+    const isVerticalLayout = totalNodes <= 2;
 
     if (isVerticalLayout) {
       // Vertical layout: nodes stacked top to bottom
-      const nodeHeight = nodeWidth * 0.6; // Approximate node height based on width
-      const verticalSpacing = Math.max(nodeSpacing * 1.2, 120); // Increased spacing for vertical layout
+      const nodeHeight = nodeWidth * 0.6;
+      const verticalSpacing = 120;
 
       // Calculate total height needed
       const totalHeight =
         totalNodes * nodeHeight + (totalNodes - 1) * verticalSpacing;
 
-      // Calculate starting position to center the nodes vertically
+      // Fixed container height for calculations
+      const containerHeight = 600;
       const startY = Math.max(80, (containerHeight - totalHeight) / 2);
 
       return currentWorkflow.nodes.map((node, index) => ({
         id: node.id,
         type: 'workflowNode' as const,
         position: {
-          x: Math.max(80, (containerWidth - nodeWidth) / 2), // Center horizontally with more margin
+          x: 50, // Fixed horizontal position
           y: startY + index * (nodeHeight + verticalSpacing),
         },
         data: {
@@ -153,7 +98,8 @@ export default function WorkflowFlow({
       const totalWidth =
         totalNodes * nodeWidth + (totalNodes - 1) * nodeSpacing;
 
-      // Calculate starting position to center the nodes
+      // Fixed container width for calculations
+      const containerWidth = 1200;
       const startX = Math.max(50, (containerWidth - totalWidth) / 2);
 
       return currentWorkflow.nodes.map((node, index) => ({
@@ -161,7 +107,7 @@ export default function WorkflowFlow({
         type: 'workflowNode' as const,
         position: {
           x: startX + index * (nodeWidth + nodeSpacing),
-          y: 0,
+          y: 50, // Fixed vertical position
         },
         data: {
           id: node.id,
@@ -176,52 +122,67 @@ export default function WorkflowFlow({
         },
       }));
     }
-  };
+  }, [currentWorkflow.nodes, stableOnNodeClick]);
 
   // Convert workflow nodes to React Flow nodes with dynamic positioning
-  const nodes: Node[] = calculateNodePositions();
+  const nodes: Node[] = useMemo(() => {
+    return calculateNodePositions.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        // Ensure stable references for functions
+        onNodeClick: onNodeClick || (() => {}),
+      },
+    }));
+  }, [calculateNodePositions, stableOnNodeClick]);
 
   // Determine layout direction for connections and workflow key
-  const aspectRatio = containerWidth / containerHeight;
-  const isVerticalLayout = aspectRatio < 1.2;
+  const isVerticalLayout = currentWorkflow.nodes.length <= 2;
   const layoutKey = isVerticalLayout ? 'vertical' : 'horizontal';
 
   // Convert workflow connections to React Flow edges
-  const edges: Edge[] = currentWorkflow.connections.map(connection => {
-    return {
-      id: connection.id,
-      source: connection.source,
-      target: connection.target,
-      type: 'smoothstep',
-      sourceHandle: isVerticalLayout ? 'bottom' : 'right',
-      targetHandle: isVerticalLayout ? 'top' : 'left',
-      style: {
-        stroke:
-          connection.status === 'complete'
-            ? '#10b981'
-            : connection.status === 'error'
-              ? '#ef4444'
-              : '#6b7280',
-        strokeWidth: 2,
-      },
-      markerEnd: {
-        type: 'arrowclosed',
-        width: 20,
-        height: 20,
-        color:
-          connection.status === 'complete'
-            ? '#10b981'
-            : connection.status === 'error'
-              ? '#ef4444'
-              : '#6b7280',
-      } as EdgeMarkerType,
-    };
-  });
+  const edges: Edge[] = useMemo(() => {
+    return currentWorkflow.connections.map(connection => {
+      return {
+        id: connection.id,
+        source: connection.source,
+        target: connection.target,
+        type: 'smoothstep',
+        sourceHandle: isVerticalLayout ? 'bottom' : 'right',
+        targetHandle: isVerticalLayout ? 'top' : 'left',
+        style: {
+          stroke:
+            connection.status === 'complete'
+              ? '#10b981'
+              : connection.status === 'error'
+                ? '#ef4444'
+                : '#6b7280',
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: 'arrowclosed',
+          width: 20,
+          height: 20,
+          color:
+            connection.status === 'complete'
+              ? '#10b981'
+              : connection.status === 'error'
+                ? '#ef4444'
+                : '#6b7280',
+        } as EdgeMarkerType,
+      };
+    });
+  }, [currentWorkflow.connections, isVerticalLayout]);
 
   // Create a stable key for React Flow to prevent unnecessary re-renders
+  // Only change key when node count or node IDs change, not on status updates
+  const nodeIds = currentWorkflow.nodes
+    .map(n => n.id)
+    .sort()
+    .join('-');
   const workflowKey =
     currentWorkflow.nodes.length > 0
-      ? `nodes-${currentWorkflow.nodes.length}-width-${containerWidth}-height-${containerHeight}-layout-${layoutKey}`
+      ? `nodes-${currentWorkflow.nodes.length}-ids-${nodeIds}-layout-${layoutKey}`
       : 'empty';
 
   return (
@@ -274,3 +235,5 @@ export default function WorkflowFlow({
     </div>
   );
 }
+
+export default WorkflowFlow;

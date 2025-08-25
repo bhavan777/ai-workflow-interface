@@ -3,13 +3,13 @@ import type { DataFlowNode } from '@/types';
 import {
   CheckCheck,
   Circle,
-  Clock,
   Database,
   HelpCircle,
   Settings,
   Zap,
 } from 'lucide-react';
 import { Handle, Position } from 'reactflow';
+import StatusPill from './StatusPill';
 
 interface WorkflowNodeProps {
   data: DataFlowNode & {
@@ -51,45 +51,6 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
         return 'bg-green-500';
       default:
         return 'bg-gray-500';
-    }
-  };
-
-  const getStatusPillColor = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return 'bg-green-600/80 text-white';
-      case 'partial':
-        return 'bg-orange-600/80 text-white';
-      case 'error':
-        return 'bg-red-600/80 text-white';
-      default:
-        return 'bg-gray-600/80 text-white';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return <Settings className="size-4" />;
-      case 'partial':
-        return <Clock className="size-4" />;
-      case 'error':
-        return <Settings className="size-4" />;
-      default:
-        return <HelpCircle className="size-4" />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return 'Complete';
-      case 'partial':
-        return 'In Progress';
-      case 'error':
-        return 'Error';
-      default:
-        return 'Pending';
     }
   };
 
@@ -153,15 +114,7 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
 
           {/* Status Pill - Line 2 */}
           <div className="flex justify-start">
-            <div
-              className={cn(
-                'px-3 py-1 rounded-full text-[14px] flex items-center gap-1.5 w-fit transition-all duration-300',
-                getStatusPillColor(data.status)
-              )}
-            >
-              {getStatusIcon(data.status)}
-              <span>{getStatusText(data.status)}</span>
-            </div>
+            <StatusPill status={data.status} />
           </div>
         </div>
 
@@ -175,46 +128,49 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
         >
           <div className="space-y-3">
             {/* Data Requirements List */}
-            {data.data_requirements?.required_fields &&
-            data.data_requirements.required_fields.length > 0 ? (
-              data.data_requirements.required_fields.map((field: string) => {
-                const isProvided =
-                  data.data_requirements?.provided_fields.includes(field);
-                return (
-                  <div
-                    key={field}
-                    className="flex items-center justify-start space-x-1"
-                  >
+            <div className="flex flex-col items-start gap-3">
+              {data.data_requirements?.required_fields &&
+              data.data_requirements.required_fields.length > 0 ? (
+                data.data_requirements.required_fields.map((field: string) => {
+                  const isProvided =
+                    data.data_requirements?.provided_fields.includes(field);
+                  return (
                     <div
-                      key={`${data.id}-${field}-${isProvided}`}
-                      className="flex items-center space-x-1"
+                      key={`field-${data.id}-${field}`}
+                      className="flex h-6 items-center justify-start space-x-1"
                     >
-                      {isProvided ? (
-                        <CheckCheck className="size-5 text-green-500 flex-shrink-0" />
-                      ) : (
-                        <Circle className="size-4 text-gray-400 flex-shrink-0" />
-                      )}
-                      <span
-                        className={`text-[16px] truncate font-light max-w-full leading-none ${
-                          isProvided ? 'text-gray-900' : 'text-gray-400'
-                        }`}
-                      >
-                        {field.includes('_') ? field.replace(/_/g, ' ') : field}
-                      </span>
+                      <div className="flex items-center space-x-1">
+                        <div className="flex items-center">
+                          {isProvided ? (
+                            <CheckCheck className="size-5 text-green-500 flex-shrink-0 transition-all duration-200 ease-in-out" />
+                          ) : (
+                            <Circle className="size-4 text-gray-400 flex-shrink-0 mr-1 transition-all duration-200 ease-in-out" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[16px] truncate font-light max-w-full leading-none transition-colors duration-200 ease-in-out ${
+                            isProvided ? 'text-gray-900' : 'text-gray-400'
+                          }`}
+                        >
+                          {field.includes('_')
+                            ? field.replace(/_/g, ' ')
+                            : field}
+                        </span>
+                      </div>
                     </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <HelpCircle className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                    <p className="text-[9px] text-muted-foreground">
+                      No data required
+                    </p>
                   </div>
-                );
-              })
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <HelpCircle className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                  <p className="text-[9px] text-muted-foreground">
-                    No data required
-                  </p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -28,6 +28,11 @@ interface ChatState {
   setError: (error: string | null) => void;
   clearMessages: () => void;
   addUserMessage: (content: string) => void;
+  addDummyAssistantMessage: () => void;
+  updateLastAssistantMessage: (
+    content: string,
+    messageType?: 'text' | 'markdown'
+  ) => void;
   sendMessage: (message: any) => void;
   updateNodeStatus: (nodeId: string, status: DataFlowNode['status']) => void;
   getCurrentWorkflowState: () => {
@@ -67,11 +72,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Actions
   addMessage: message =>
     set(state => {
-      // Only add non-thought messages to the messages array
-      const newMessages =
-        message.type !== 'THOUGHT'
-          ? [...state.messages, message]
-          : state.messages;
+      let newMessages = state.messages;
+
+      // If this is an assistant message, update the last dummy assistant message content
+      if (message.role === 'assistant' && message.type === 'MESSAGE') {
+        const lastDummyIndex = state.messages.findIndex(
+          msg => msg.role === 'assistant' && msg.type === 'DUMMY_ASSISTANT'
+        );
+
+        if (lastDummyIndex !== -1) {
+          // Update only the content and type of the dummy message, keep the same ID
+          newMessages = [...state.messages];
+          newMessages[lastDummyIndex] = {
+            ...newMessages[lastDummyIndex],
+            content: message.content,
+            type: 'MESSAGE',
+            message_type: message.message_type || 'text',
+            nodes: message.nodes,
+            connections: message.connections,
+            workflow_complete: message.workflow_complete,
+            node_status_updates: message.node_status_updates,
+          };
+        } else {
+          // No dummy message found, add normally
+          newMessages = [...state.messages, message];
+        }
+      } else if (message.type !== 'THOUGHT') {
+        // For non-thought messages that aren't assistant responses, add normally
+        newMessages = [...state.messages, message];
+      }
 
       // Handle individual node status updates
       let newWorkflow = state.currentWorkflow;
@@ -137,10 +166,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
         content,
         timestamp: new Date().toISOString(),
       };
+
+      // Add dummy assistant message immediately after user message
+      const dummyAssistantMessage: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        role: 'assistant',
+        type: 'DUMMY_ASSISTANT',
+        content: '',
+        timestamp: new Date().toISOString(),
+      };
+
       return {
-        messages: [...state.messages, userMessage],
+        messages: [...state.messages, userMessage, dummyAssistantMessage],
       };
     }),
+
+  addDummyAssistantMessage: () => {
+    set(state => ({
+      messages: [
+        ...state.messages,
+        {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          role: 'assistant',
+          type: 'DUMMY_ASSISTANT',
+          content: 'Thinking...',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    }));
+  },
+
+  updateLastAssistantMessage: (
+    content: string,
+    messageType: 'text' | 'markdown' = 'text'
+  ) => {
+    set(state => {
+      const lastAssistantMessageIndex = state.messages.findIndex(
+        msg => msg.role === 'assistant' && msg.type === 'DUMMY_ASSISTANT'
+      );
+
+      if (lastAssistantMessageIndex !== -1) {
+        const updatedMessages = [...state.messages];
+        updatedMessages[lastAssistantMessageIndex] = {
+          ...updatedMessages[lastAssistantMessageIndex],
+          content,
+          type: 'MESSAGE',
+          message_type: messageType,
+        };
+        return { messages: updatedMessages };
+      }
+      return state;
+    });
+  },
 
   sendMessage: (message: any) => {
     // This will be implemented to send messages via WebSocket

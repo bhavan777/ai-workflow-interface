@@ -32,6 +32,11 @@ export default function Message({
         <Brain className="w-4 h-4" />
       );
       break;
+    case 'DUMMY_ASSISTANT':
+      messageStyle =
+        'bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:bg-primary/95';
+      icon = <Brain className="w-4 h-4" />;
+      break;
     case 'ERROR':
       messageStyle =
         'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100';
@@ -43,12 +48,11 @@ export default function Message({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{
-        duration: 0.3,
-        ease: [0.25, 0.46, 0.45, 0.94],
-        delay: isLastMessage ? 0.1 : 0,
+        duration: 0.4,
+        ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
       }}
       className={`flex space-x-3 ${
         isUser ? 'justify-end items-end' : 'justify-start items-start'
@@ -58,7 +62,11 @@ export default function Message({
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{
+            duration: 0.5,
+            ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+            delay: 0.1,
+          }}
           className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200"
         >
           <Brain className="w-4 h-4 text-primary-foreground" />
@@ -69,9 +77,13 @@ export default function Message({
         className={`flex flex-col max-w-xs ${isUser ? 'items-end' : 'items-start'}`}
       >
         <motion.div
-          initial={{ opacity: 0, x: isUser ? 10 : -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.3,
+            ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+            delay: 0.05,
+          }}
           className={`text-xs mb-1 font-medium ${
             isUser ? 'text-slate-400 text-right' : 'text-primary text-left'
           }`}
@@ -79,26 +91,91 @@ export default function Message({
           {isUser ? 'You' : 'Nexla'}
         </motion.div>
         <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           className={`w-full px-4 py-2 ${messageStyle} relative transition-all duration-200 rounded-lg ${
             isUser
               ? 'rounded-l-lg rounded-br-lg rounded-tr-lg rounded-br-none' // Sharp edge on right bottom for user
               : 'rounded-r-lg rounded-bl-lg rounded-tl-lg rounded-tl-none' // Sharp edge on left bottom for AI
           }`}
         >
-          {message.message_type === 'markdown' ? (
-            <div className="text-sm prose prose-sm max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
-            </div>
-          ) : (
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-          )}
+          <motion.div
+            key={message.content} // This triggers animation when content changes
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+            }}
+          >
+            {message.type === 'DUMMY_ASSISTANT' ? (
+              // Loading state for dummy assistant message - just dots
+              <div className="flex items-center space-x-1 min-h-6">
+                <motion.div
+                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+                <motion.div
+                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 0.2,
+                  }}
+                />
+                <motion.div
+                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 0.4,
+                  }}
+                />
+              </div>
+            ) : (
+              // Normal message content
+              <>
+                {message.message_type === 'markdown' ? (
+                  <div className="text-sm prose prose-sm max-w-none">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">
+                    {message.content}
+                  </p>
+                )}
+              </>
+            )}
+          </motion.div>
 
           {/* Retry button for error messages - only show on last error message */}
           {message.type === 'ERROR' && onRetry && isLastMessage && (
             <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
+              initial={{ opacity: 0, scale: 0.8, rotate: -180 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{
+                duration: 0.4,
+                ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+                delay: 0.3,
+              }}
               className="absolute -bottom-2 -right-2"
             >
               <Button
@@ -118,7 +195,11 @@ export default function Message({
         <motion.div
           initial={{ scale: 0, rotate: 180 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{
+            duration: 0.5,
+            ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+            delay: 0.1,
+          }}
           className="flex-shrink-0 w-8 h-8 bg-background border border-border rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200"
         >
           <User className="w-4 h-4 text-primary" />

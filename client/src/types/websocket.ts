@@ -8,7 +8,8 @@ export interface Message {
     | 'ERROR'
     | 'STATUS'
     | 'NODE_DATA'
-    | 'GET_NODE_DATA';
+    | 'GET_NODE_DATA'
+    | 'DUMMY_ASSISTANT';
   content: string; // Main message content (or thought content)
   timestamp: string; // ISO timestamp
   message_type?: 'text' | 'markdown'; // Type of message content

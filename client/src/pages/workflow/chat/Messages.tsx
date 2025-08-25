@@ -1,9 +1,8 @@
 import { useChat } from '@/hooks/useChat';
 import type { Message as MessageType } from '@/types';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import Message from './Message';
-import WaveLoader from './WaveLoader.tsx';
 
 interface MessagesProps {
   messages: MessageType[];
@@ -19,15 +18,12 @@ export default function Messages({
   const { isLoading } = useChat();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Smooth auto-scroll to bottom
   useEffect(() => {
     if (containerRef.current) {
-      // Use requestAnimationFrame to ensure DOM is updated before scrolling
-      requestAnimationFrame(() => {
-        containerRef.current?.scrollTo({
-          top: containerRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: 'smooth',
       });
     }
   }, [messages, isLoading]);
@@ -50,20 +46,19 @@ export default function Messages({
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-y-auto space-y-4 p-4 transition-all duration-500 ${
+      className={`flex-1 overflow-y-auto p-4 transition-all duration-500 ${
         isWorkflowComplete ? 'opacity-40 blur-[0.3px]' : ''
       }`}
     >
-      <AnimatePresence mode="popLayout">
+      <div className="space-y-4">
         {displayMessages.map((message, index) => (
           <motion.div
             key={message.id}
-            initial={{ opacity: 0, maxHeight: 0 }}
-            animate={{ opacity: 1, maxHeight: 999 }}
-            exit={{ opacity: 0, maxHeight: 0 }}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{
               duration: 0.4,
-              ease: [0.25, 0.46, 0.45, 0.94],
+              ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
             }}
           >
             <Message
@@ -73,43 +68,26 @@ export default function Messages({
             />
           </motion.div>
         ))}
-      </AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {isLoading && (
+        {/* Visual indicator when workflow is complete */}
+        {isWorkflowComplete && (
           <motion.div
-            key="wave-loader"
-            initial={{ opacity: 0, y: 20, maxHeight: 0 }}
-            animate={{ opacity: 1, y: 0, maxHeight: 999 }}
-            exit={{ opacity: 0, y: -10, maxHeight: 0 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{
-              duration: 0.4,
-              ease: [0.25, 0.46, 0.45, 0.94],
+              duration: 0.5,
+              ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+              delay: 0.1,
             }}
+            className="text-center py-4"
           >
-            <WaveLoader />
+            <div className="inline-flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+              <span>✨</span>
+              <span>Workflow configuration complete!</span>
+            </div>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Visual indicator when workflow is complete */}
-      {isWorkflowComplete && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.3,
-            ease: [0.25, 0.46, 0.45, 0.94],
-            delay: 0.2,
-          }}
-          className="text-center py-4"
-        >
-          <div className="inline-flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
-            <span>✨</span>
-            <span>Workflow configuration complete!</span>
-          </div>
-        </motion.div>
-      )}
+      </div>
     </div>
   );
 }

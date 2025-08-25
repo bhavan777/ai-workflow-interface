@@ -1,5 +1,6 @@
 import { useChatStore } from '@/store/useChatStore';
 import type { DataFlowConnection, DataFlowNode } from '@/types';
+import { useCallback } from 'react';
 import EmptyState from './EmptyState';
 import NodeDataDrawer from './NodeDataDrawer';
 import WorkflowFlow from './WorkflowFlow';
@@ -20,13 +21,16 @@ export default function Canvas({
 }: CanvasProps) {
   const { nodeData, clearNodeData, isLoading } = useChatStore();
 
-  const handleNodeClick = (nodeId: string) => {
-    onNodeDataRequest(nodeId);
-  };
+  const handleNodeClick = useCallback(
+    (nodeId: string) => {
+      onNodeDataRequest(nodeId);
+    },
+    [onNodeDataRequest]
+  );
 
-  const handleCloseDrawer = () => {
+  const handleCloseDrawer = useCallback(() => {
     clearNodeData();
-  };
+  }, [clearNodeData]);
 
   return (
     <div className="w-2/3 bg-background/30 relative">

@@ -57,7 +57,7 @@ export default function Workflow() {
     setLoadingState(true);
 
     try {
-      // Add user message to store
+      // Add user message to store (dummy assistant message is added automatically)
       addUserMessage(description);
 
       // Send message to server
@@ -72,7 +72,7 @@ export default function Workflow() {
     setLoadingState(true);
 
     try {
-      // Add user message to store
+      // Add user message to store (dummy assistant message is added automatically)
       addUserMessage(content);
 
       // Send message to server
@@ -104,7 +104,7 @@ export default function Workflow() {
   return (
     <>
       {/* Main Content - Split Layout */}
-      <div className="flex h-[calc(100vh-80px)]">
+      <div className="flex h-[calc(100vh-70px)]">
         {isConnecting ? (
           // Show connection loader only in the chat section
           <div className="w-1/3 border-r border-border bg-background/50 flex items-center justify-center">
