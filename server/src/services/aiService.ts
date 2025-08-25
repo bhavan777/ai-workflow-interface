@@ -448,6 +448,9 @@ CRITICAL RULES:
 - CRITICAL: If user's message contains a field value, move that field from missing_fields to provided_fields
 - CRITICAL: If user's message is just a question, comment, or doesn't contain specific field data, do NOT update the workflow state
 - CRITICAL: Examples of when NOT to update: "What do you mean?", "I don't understand", "Can you explain?", "How do I find this?"
+- CRITICAL: Do NOT interpret workflow descriptions like "Shopify to Snowflake" as field values
+- CRITICAL: Do NOT interpret service names, workflow types, or general descriptions as field data
+- CRITICAL: Only treat explicit field answers as field values, not workflow descriptions or service names
 - CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node
 - CRITICAL: Every data request MUST include an example in the format "> **Example:** \`[sample example]\`"
 
@@ -461,6 +464,8 @@ SEQUENTIAL DATA COLLECTION RULES:
 - CRITICAL: The initial greeting is informational only - do not ask for any data in the greeting message
 - CRITICAL: Do NOT update workflow state when user asks questions, makes comments, or doesn't provide field data
 - CRITICAL: Only update workflow state when user explicitly provides the requested field value
+- CRITICAL: When user describes workflow type (e.g., "Shopify to Snowflake"), this is NOT a field value - it's just workflow context
+- CRITICAL: Initial workflow descriptions should only be used to determine field types, not to populate field values
 
 NODE TRANSITION MESSAGES:
 - CRITICAL: When starting a workflow (very first interaction), you MUST provide ONLY a greeting and explanation - NO questions, NO data requests, NO field names: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`[source]\`** to **\`[destination]\`**. I'll collect configuration information step by step, starting with your **\`[source]\`** details.\\n\\nI'll ask for one piece of information at a time, and we'll build your workflow together!"
@@ -1514,6 +1519,16 @@ CRITICAL RULES:
 5. Preserve all existing field names in required_fields arrays
 6. THE NODE STRUCTURE IS THE SOURCE OF TRUTH - field names in nodes determine what questions to ask
 
+FIELD VALUE DETECTION RULES:
+- ONLY update workflow state when user explicitly provides the answer to the CURRENT question being asked
+- The current question field is specified in the context below
+- User response must be a direct answer to that specific field question
+- Valid field answers are specific values like: "my-store-name", "https://api.example.com", "admin@company.com"
+- Do NOT update if user asks questions, makes comments, or provides unrelated information
+- Do NOT interpret workflow descriptions (like "Shopify to Snowflake") as field values
+- Do NOT interpret service names or general descriptions as field data
+- Examples of invalid responses that should NOT update workflow: "What do you mean?", "I don't understand", "Can you explain?", "How do I find this?"
+
 JSON STRUCTURE (MUST MAINTAIN CONSISTENCY):
 {
   "message": "string", // The conversational message from chat model
@@ -1588,7 +1603,18 @@ Remember: CONSISTENCY IS KEY. Never change the structure, only update the values
       },
       {
         role: 'user' as const,
-        content: `Update the workflow JSON structure based on this conversation and current state. Maintain field consistency - do not change required_fields once set.\n\nCURRENT STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}\n\nUSER MESSAGE: ${currentMessage.content}\n\n${transitionInfo}\n\nCRITICAL: Only update values, never change the field structure.`,
+        content: `Update the workflow JSON structure based on this conversation and current state. Maintain field consistency - do not change required_fields once set.
+
+CURRENT STATE:
+${JSON.stringify(existingWorkflowState, null, 2)}
+
+CURRENT QUESTION BEING ASKED: ${nextDataPoint ? `${nextDataPoint.fieldName} (${nextDataPoint.nodeName})` : 'No question currently being asked'}
+
+USER MESSAGE: ${currentMessage.content}
+
+${transitionInfo}
+
+CRITICAL: Only update values if user explicitly provides the answer to the current question. Do NOT update if user asks questions, makes comments, or provides workflow descriptions.`,
       },
     ];
 
