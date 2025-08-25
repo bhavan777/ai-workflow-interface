@@ -23,14 +23,8 @@ export const useWorkflowWebSocket = ({
       setIsConnecting(true);
       setError(null);
 
-      const host = import.meta.env.VITE_API_URL || 'localhost';
-      const port = import.meta.env.VITE_API_PORT || '3001';
-      
-      // For Railway deployments, always use secure WebSocket
-      const wsUrl = host.includes('railway.app') 
-        ? `wss://${host}`
-        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${host}:${port}`;
-      
+      const wsUrl = 'wss://ai-workflow-interface-production.up.railway.app';
+
       console.log('🔌 Connecting to WebSocket:', wsUrl);
 
       try {

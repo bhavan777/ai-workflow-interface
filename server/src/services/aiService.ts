@@ -442,7 +442,7 @@ CRITICAL RULES:
 - Ask directly for what you need - no confirmations or permissions
 - Assume user is ready to provide information
 - IMPORTANT: You will receive the current workflow state - update it incrementally, don't replace it entirely
-- CRITICAL: The initial greeting should include both welcome message and first question with clear visual separation using markdown
+- CRITICAL: The initial greeting should be informational only - welcome the user and explain the process, but do NOT ask for any data yet
 - CRITICAL: Only update workflow state when user explicitly provides a field value in their response
 - CRITICAL: A field value is provided when user gives a specific answer like "my-store-name" or "https://api.example.com"
 - CRITICAL: If user's message contains a field value, move that field from missing_fields to provided_fields
@@ -469,6 +469,7 @@ SEQUENTIAL DATA COLLECTION RULES:
 
 NODE TRANSITION MESSAGES:
 - CRITICAL: When starting a workflow (very first interaction), you MUST provide ONLY a greeting and explanation - NO questions, NO data requests, NO field names: "**Welcome!** 🎉 I'll help you create a data pipeline from **\`[source]\`** to **\`[destination]\`**. I'll collect configuration information step by step, starting with your **\`[source]\`** details.\\n\\nI'll ask for one piece of information at a time, and we'll build your workflow together!"
+- CRITICAL: The initial greeting should NOT include any field requests or questions - just welcome and explain the process
 - When starting a new node (first field of that node): "**Perfect!** ✨ Now I'll collect information related to **\`[node type]\`** configuration.\\n\\nLet's start with **\`[first field]\`**:\\n> **Example:** \`[sample example]\`"
 - When completing a node (last field of that node): "**Excellent!** 🎯 **\`[node type]\`** configuration is now complete.\\n\\nLet's move on to **\`[next node type]\`** configuration."
 - Be graceful and informative about transitions between nodes
@@ -1528,6 +1529,8 @@ FIELD VALUE DETECTION RULES:
 - Do NOT interpret workflow descriptions (like "Shopify to Snowflake") as field values
 - Do NOT interpret service names or general descriptions as field data
 - Examples of invalid responses that should NOT update workflow: "What do you mean?", "I don't understand", "Can you explain?", "How do I find this?"
+- CRITICAL: When creating initial workflow state, ALL fields should be in missing_fields, NONE in provided_fields
+- CRITICAL: Do NOT populate provided_fields unless user explicitly provides that specific field value
 
 JSON STRUCTURE (MUST MAINTAIN CONSISTENCY):
 {
