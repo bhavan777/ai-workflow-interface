@@ -239,18 +239,15 @@ const isWorkflowComplete = (workflow: any) => {
 
 // Main AI processing function - simplified
 export const processMessage = async (
-  currentMessage: Message,
   conversationHistory: Message[],
-  existingWorkflowState: any = null,
+  currentMessage: Message,
   sendThought?: (thought: string) => void
-): Promise<{
-  message: string;
-  workflowState: any;
-}> => {
+): Promise<Message> => {
   const groqClient = new GroqCloudClient();
 
   // Initialize workflow if it doesn't exist
-  let workflowState = existingWorkflowState || createHardcodedWorkflow();
+  let workflowState =
+    getCurrentWorkflowState(conversationHistory) || createHardcodedWorkflow();
 
   // Check if this is the first message
   const isFirstMessage = conversationHistory.length === 0;
@@ -261,9 +258,12 @@ export const processMessage = async (
   // Check if workflow is complete
   const isComplete = isWorkflowComplete(workflowState);
 
+  let responseMessage: string;
+  let updatedWorkflowState = workflowState;
+
   if (isFirstMessage) {
     // First message - greet and explain
-    const greetingMessage = `👋 Hello! I'm here to help you configure your data pipeline workflow.
+    responseMessage = `👋 Hello! I'm here to help you configure your data pipeline workflow.
 
 I'll guide you through setting up a complete data flow with three main components:
 1. **Data Source** - where your data comes from
@@ -273,32 +273,26 @@ I'll guide you through setting up a complete data flow with three main component
 Let me start by asking about your data source. What type of data source are you using?
 
 > **Example:** \`database\`, \`api\`, \`file\`, \`cloud_storage\``;
+  } else {
+    // Update workflow with user's answer
+    if (nextField && !isComplete) {
+      updatedWorkflowState = updateWorkflowWithAnswer(
+        workflowState,
+        nextField.fieldName,
+        currentMessage.content
+      );
+    }
 
-    return {
-      message: greetingMessage,
-      workflowState: workflowState,
-    };
-  }
+    // Get the next field after updating
+    const updatedNextField = getNextField(updatedWorkflowState);
+    const updatedIsComplete = isWorkflowComplete(updatedWorkflowState);
 
-  // Update workflow with user's answer
-  if (nextField && !isComplete) {
-    workflowState = updateWorkflowWithAnswer(
-      workflowState,
-      nextField.fieldName,
-      currentMessage.content
-    );
-  }
-
-  // Get the next field after updating
-  const updatedNextField = getNextField(workflowState);
-  const updatedIsComplete = isWorkflowComplete(workflowState);
-
-  if (updatedIsComplete) {
-    // Workflow is complete
-    const completionMessage = `🎉 Excellent! Your workflow configuration is now complete.
+    if (updatedIsComplete) {
+      // Workflow is complete
+      responseMessage = `🎉 Excellent! Your workflow configuration is now complete.
 
 Here's what we've configured:
-${workflowState.nodes
+${updatedWorkflowState.nodes
   .map(
     (node: any) =>
       `**${node.name}**: ${Object.entries(node.config)
@@ -308,39 +302,64 @@ ${workflowState.nodes
   .join('\n')}
 
 Your data pipeline is ready to be deployed! 🚀`;
+    } else if (updatedNextField) {
+      // Ask for the next field
+      const fieldExamples = {
+        source_type: 'database, api, file, cloud_storage',
+        connection_string: 'jdbc:mysql://localhost:3306/mydb',
+        table_name: 'users, orders, products',
+        operation_type: 'filter, aggregate, join, transform',
+        parameters: '{"condition": "status = active"}',
+        destination_type: 'database, warehouse, api',
+      };
 
-    return {
-      message: completionMessage,
-      workflowState: workflowState,
-    };
-  }
-
-  // Ask for the next field
-  if (updatedNextField) {
-    const fieldExamples = {
-      source_type: 'database, api, file, cloud_storage',
-      connection_string: 'jdbc:mysql://localhost:3306/mydb',
-      table_name: 'users, orders, products',
-      operation_type: 'filter, aggregate, join, transform',
-      parameters: '{"condition": "status = active"}',
-      destination_type: 'database, warehouse, api',
-    };
-
-    const nextMessage = `Great! Now I need to know about the **${updatedNextField.fieldName}** for your ${updatedNextField.nodeName}.
+      responseMessage = `Great! Now I need to know about the **${updatedNextField.fieldName}** for your ${updatedNextField.nodeName}.
 
 > **Example:** \`${fieldExamples[updatedNextField.fieldName as keyof typeof fieldExamples] || 'your value here'}\``;
-
-    return {
-      message: nextMessage,
-      workflowState: workflowState,
-    };
+    } else {
+      // Fallback
+      responseMessage =
+        "I'm not sure what to ask next. Let me check the workflow state.";
+    }
   }
 
-  // Fallback
-  return {
-    message: "I'm not sure what to ask next. Let me check the workflow state.",
-    workflowState: workflowState,
+  // Create the response Message object
+  const response: Message = {
+    id: generateId(),
+    response_to: currentMessage.id,
+    role: 'assistant',
+    type: 'MESSAGE',
+    content: responseMessage,
+    message_type: 'markdown',
+    timestamp: new Date().toISOString(),
+    nodes: updatedWorkflowState.nodes,
+    connections: updatedWorkflowState.connections,
+    workflow_complete: isWorkflowComplete(updatedWorkflowState),
   };
+
+  return response;
+};
+
+// Helper function to get current workflow state from conversation history
+const getCurrentWorkflowState = (conversationHistory: Message[]): any => {
+  // Find the last message with nodes and connections
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const message = conversationHistory[i];
+    if (message.nodes && message.connections) {
+      return { nodes: message.nodes, connections: message.connections };
+    }
+  }
+  return null;
+};
+
+// Helper function to generate unique IDs
+const generateId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+// Function to clear all conversations (in-memory only)
+export const clearAllConversations = (): void => {
+  console.log('✅ All conversations cleared (in-memory only)');
 };
 
 export interface Message {
