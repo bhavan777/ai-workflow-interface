@@ -1060,27 +1060,29 @@ const hasWorkflowStateChanged = (
   return false;
 };
 
-// Helper function to create initial workflow state (legacy)
-const createInitialWorkflowState = (
-  conversationHistory: Message[] = []
+// Dynamic workflow structure based on user's workflow description
+const createDynamicWorkflowState = (
+  conversationHistory: Message[]
 ): {
   nodes: DataFlowNode[];
   connections: DataFlowConnection[];
 } => {
-  const fieldNames = getContextualFieldNames(conversationHistory);
+  // Extract source and destination from conversation history
+  const sourceName = extractSourceName(conversationHistory);
+  const destinationName = extractDestinationName(conversationHistory);
 
   return {
     nodes: [
       {
         id: 'source-node',
         type: 'source',
-        name: 'Data Source',
+        name: sourceName || 'Data Source',
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: fieldNames.sourceFields,
+          required_fields: ['source_type', 'connection_details', 'data_format'],
           provided_fields: [],
-          missing_fields: fieldNames.sourceFields,
+          missing_fields: ['source_type', 'connection_details', 'data_format'],
         },
       },
       {
@@ -1098,13 +1100,21 @@ const createInitialWorkflowState = (
       {
         id: 'destination-node',
         type: 'destination',
-        name: 'Data Destination',
+        name: destinationName || 'Data Destination',
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: fieldNames.destinationFields,
+          required_fields: [
+            'destination_type',
+            'connection_details',
+            'target_schema',
+          ],
           provided_fields: [],
-          missing_fields: fieldNames.destinationFields,
+          missing_fields: [
+            'destination_type',
+            'connection_details',
+            'target_schema',
+          ],
         },
       },
     ],
@@ -1123,6 +1133,129 @@ const createInitialWorkflowState = (
       },
     ],
   };
+};
+
+// Helper function to extract source name from conversation
+const extractSourceName = (conversationHistory: Message[]): string => {
+  const userMessages = conversationHistory.filter(msg => msg.role === 'user');
+  const lastUserMessage = userMessages[userMessages.length - 1];
+
+  if (!lastUserMessage) return 'Data Source';
+
+  const content = lastUserMessage.content.toLowerCase();
+
+  // Common source patterns
+  if (content.includes('shopify')) return 'Shopify Store';
+  if (content.includes('salesforce')) return 'Salesforce CRM';
+  if (
+    content.includes('mysql') ||
+    content.includes('postgresql') ||
+    content.includes('database')
+  )
+    return 'Database';
+  if (content.includes('api') || content.includes('rest'))
+    return 'API Endpoint';
+  if (content.includes('s3') || content.includes('bucket')) return 'S3 Bucket';
+  if (content.includes('bigquery') || content.includes('gcp'))
+    return 'BigQuery Dataset';
+  if (content.includes('mongodb')) return 'MongoDB Collection';
+  if (content.includes('kafka')) return 'Kafka Topic';
+  if (content.includes('redis')) return 'Redis Cache';
+  if (content.includes('elasticsearch')) return 'Elasticsearch Index';
+
+  return 'Data Source';
+};
+
+// Helper function to extract destination name from conversation
+const extractDestinationName = (conversationHistory: Message[]): string => {
+  const userMessages = conversationHistory.filter(msg => msg.role === 'user');
+  const lastUserMessage = userMessages[userMessages.length - 1];
+
+  if (!lastUserMessage) return 'Data Destination';
+
+  const content = lastUserMessage.content.toLowerCase();
+
+  // Common destination patterns
+  if (content.includes('snowflake')) return 'Snowflake Warehouse';
+  if (content.includes('bigquery') || content.includes('gcp'))
+    return 'BigQuery Dataset';
+  if (content.includes('redshift')) return 'Redshift Cluster';
+  if (content.includes('databricks')) return 'Databricks Lakehouse';
+  if (
+    content.includes('mysql') ||
+    content.includes('postgresql') ||
+    content.includes('database')
+  )
+    return 'Database';
+  if (content.includes('api') || content.includes('rest'))
+    return 'API Endpoint';
+  if (content.includes('s3') || content.includes('bucket')) return 'S3 Bucket';
+  if (content.includes('mongodb')) return 'MongoDB Collection';
+  if (content.includes('kafka')) return 'Kafka Topic';
+  if (content.includes('elasticsearch')) return 'Elasticsearch Index';
+
+  return 'Data Destination';
+};
+
+// Helper function to update existing nodes progressively
+const updateExistingNodes = (
+  existingNodes: DataFlowNode[],
+  aiResponse: any,
+  conversationHistory: Message[]
+): DataFlowNode[] => {
+  // If AI provided new nodes, use them to update existing ones
+  if (aiResponse.nodes && Array.isArray(aiResponse.nodes)) {
+    return existingNodes.map(existingNode => {
+      const aiNode = aiResponse.nodes.find(
+        (n: DataFlowNode) => n.id === existingNode.id
+      );
+      if (aiNode) {
+        // Update the existing node with AI response data
+        return {
+          ...existingNode,
+          name: aiNode.name || existingNode.name,
+          status: aiNode.status || existingNode.status,
+          config: {
+            ...existingNode.config,
+            ...aiNode.config,
+          },
+          data_requirements:
+            aiNode.data_requirements || existingNode.data_requirements,
+        };
+      }
+      return existingNode;
+    });
+  }
+
+  // If no AI nodes provided, update based on conversation context
+  return existingNodes.map(node => {
+    // Update node status based on completion
+    const missingFields = node.data_requirements?.missing_fields || [];
+    const providedFields = node.data_requirements?.provided_fields || [];
+
+    let newStatus = node.status;
+    if (missingFields.length === 0 && providedFields.length > 0) {
+      newStatus = 'complete';
+    } else if (providedFields.length > 0) {
+      newStatus = 'partial';
+    }
+
+    return {
+      ...node,
+      status: newStatus,
+    };
+  });
+};
+
+// Helper function to create initial workflow state (legacy - kept for backward compatibility)
+const createInitialWorkflowState = (
+  conversationHistory: Message[] = []
+): {
+  nodes: DataFlowNode[];
+  connections: DataFlowConnection[];
+} => {
+  // Use dynamic structure based on conversation context
+  return createDynamicWorkflowState(conversationHistory);
 };
 
 // Helper function to determine which node and field should be requested next
@@ -1743,38 +1876,37 @@ CRITICAL: Only update values if user explicitly provides the answer to the curre
 
     sendThought?.('🎯 Workflow configuration ready.');
 
-    // Merge with existing workflow state
-    const updatedNodes = parsed.nodes
-      ? mergeNodesData(existingWorkflowState.nodes || [], parsed.nodes)
-      : ensureAllNodesPresent(
-          existingWorkflowState.nodes || [],
-          conversationHistory
-        );
+    // Update existing workflow state progressively
+    let updatedNodes = existingWorkflowState.nodes || [];
+    let updatedConnections = existingWorkflowState.connections || [];
 
-    const updatedConnections = parsed.connections ||
-      existingWorkflowState.connections || [
-        {
-          id: 'conn1',
-          source: 'source-node',
-          target: 'transform-node',
-          status: 'pending',
-        },
-        {
-          id: 'conn2',
-          source: 'transform-node',
-          target: 'destination-node',
-          status: 'pending',
-        },
-      ];
+    // If this is the first message, create the initial structure
+    if (updatedNodes.length === 0) {
+      const initialState = createInitialWorkflowState(conversationHistory);
+      updatedNodes = initialState.nodes;
+      updatedConnections = initialState.connections;
+    } else {
+      // Update existing nodes based on AI response
+      updatedNodes = updateExistingNodes(
+        updatedNodes,
+        parsed,
+        conversationHistory
+      );
+    }
 
     // Check if workflow is complete
     const workflowComplete = isWorkflowComplete(updatedNodes || []);
 
+    // Check if this is the first message (no existing workflow state)
+    const isFirstMessage =
+      !existingWorkflowState.nodes || existingWorkflowState.nodes.length === 0;
+
     // Create individual node status updates
-    const nodeStatusUpdates = updatedNodes?.map(node => ({
-      node_id: node.id,
-      status: node.status,
-    })) || [];
+    const nodeStatusUpdates =
+      updatedNodes?.map(node => ({
+        node_id: node.id,
+        status: node.status,
+      })) || [];
 
     // Create the final response
     const response: Message = {
@@ -1785,7 +1917,14 @@ CRITICAL: Only update values if user explicitly provides the answer to the curre
       content: parsed.message,
       message_type: 'markdown',
       timestamp: new Date().toISOString(),
-      node_status_updates: nodeStatusUpdates,
+      // Send full workflow structure on first message, then only status updates
+      ...(isFirstMessage && {
+        nodes: updatedNodes,
+        connections: updatedConnections,
+      }),
+      ...(!isFirstMessage && {
+        node_status_updates: nodeStatusUpdates,
+      }),
       workflow_complete: workflowComplete,
     };
 

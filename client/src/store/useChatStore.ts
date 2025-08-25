@@ -32,43 +32,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Initial state
   messages: [],
   currentWorkflow: {
-    nodes: [
-      {
-        id: 'source-node',
-        type: 'source',
-        name: 'Data Source',
-        status: 'pending',
-        position: { x: 100, y: 200 },
-      },
-      {
-        id: 'transform-node',
-        type: 'transform',
-        name: 'Data Transform',
-        status: 'pending',
-        position: { x: 400, y: 200 },
-      },
-      {
-        id: 'destination-node',
-        type: 'destination',
-        name: 'Data Destination',
-        status: 'pending',
-        position: { x: 700, y: 200 },
-      },
-    ],
-    connections: [
-      {
-        id: 'conn-1',
-        source: 'source-node',
-        target: 'transform-node',
-        status: 'pending',
-      },
-      {
-        id: 'conn-2',
-        source: 'transform-node',
-        target: 'destination-node',
-        status: 'pending',
-      },
-    ],
+    nodes: [],
+    connections: [],
   },
   currentThought: null,
   workflowComplete: false,
@@ -86,19 +51,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Handle individual node status updates
       let newWorkflow = state.currentWorkflow;
-      
-      if (message.node_status_updates && message.node_status_updates.length > 0) {
+
+      if (
+        message.node_status_updates &&
+        message.node_status_updates.length > 0
+      ) {
         // Update individual node statuses
         newWorkflow = {
           ...state.currentWorkflow,
           nodes: state.currentWorkflow.nodes.map(node => {
-            const update = message.node_status_updates?.find(u => u.node_id === node.id);
+            const update = message.node_status_updates?.find(
+              u => u.node_id === node.id
+            );
             return update ? { ...node, status: update.status } : node;
           }),
         };
       } else if (message.nodes && message.connections) {
         // Full workflow state update (fallback)
-        newWorkflow = { nodes: message.nodes, connections: message.connections };
+        newWorkflow = {
+          nodes: message.nodes,
+          connections: message.connections,
+        };
       }
 
       // Update workflow completion status
