@@ -1,5 +1,62 @@
 // Multi-model AI processing with parallel execution
 
+// Simple interfaces for the hardcoded workflow
+export interface DataFlowNode {
+  id: string;
+  type: 'source' | 'transform' | 'destination';
+  name: string;
+  status: 'pending' | 'partial' | 'complete' | 'error';
+  config?: Record<string, any>;
+  data_requirements?: {
+    required_fields: string[];
+    provided_fields: string[];
+    missing_fields: string[];
+  };
+}
+
+export interface DataFlowConnection {
+  id: string;
+  source: string;
+  target: string;
+  status: 'pending' | 'complete' | 'error';
+}
+
+export interface Message {
+  id: string;
+  response_to?: string;
+  role: 'user' | 'assistant';
+  type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS' | 'GET_NODE_DATA';
+  content: string;
+  timestamp: string;
+  message_type?: 'text' | 'markdown';
+  nodes?: DataFlowNode[];
+  connections?: DataFlowConnection[];
+  workflow_complete?: boolean;
+  node_status_updates?: Array<{
+    node_id: string;
+    status: DataFlowNode['status'];
+  }>;
+  status?: 'processing' | 'complete' | 'error';
+  node_id?: string;
+}
+
+// Helper function to generate unique IDs
+const generateId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+// Helper function to get current workflow state from conversation history
+const getCurrentWorkflowState = (conversationHistory: Message[]): any => {
+  // Find the last message with nodes and connections
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const message = conversationHistory[i];
+    if (message.nodes && message.connections) {
+      return { nodes: message.nodes, connections: message.connections };
+    }
+  }
+  return null;
+};
+
 // Improved Groq Cloud AI client with automatic model fallback
 export class GroqCloudClient {
   private apiKey: string;
@@ -373,10 +430,46 @@ export const processMessage = async (
   // Check if workflow is complete
   const isComplete = isWorkflowComplete(workflowState);
 
+  // Check if this is an edit request (only if workflow is complete)
+  const isEditRequest =
+    isComplete &&
+    (currentMessage.content.toLowerCase().includes('edit') ||
+      currentMessage.content.toLowerCase().includes('change') ||
+      currentMessage.content.toLowerCase().includes('update') ||
+      currentMessage.content.toLowerCase().includes('modify'));
+
   let responseMessage: string;
   let updatedWorkflowState = workflowState;
 
-  if (isFirstMessage) {
+  if (isEditRequest) {
+    // Handle edit request
+    const availableNodes = workflowState.nodes.map((node: any) => ({
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      config: node.config,
+    }));
+
+    responseMessage = `✏️ I can help you edit your workflow configuration. 
+
+Here are the available nodes and their current settings:
+
+${availableNodes
+  .map(
+    (node: any) => `
+**${node.name}** (${node.type}):
+${Object.entries(node.config)
+  .map(([key, value]) => `  - ${key}: ${value}`)
+  .join('\n')}
+`
+  )
+  .join('\n')}
+
+Which field would you like to edit? Please specify the node name and field name, for example:
+- "Edit the source_type in Data Source"
+- "Change the connection_string in Data Destination"
+- "Update the operation_type in Data Transform"`;
+  } else if (isFirstMessage) {
     // First message - greet and explain with detected services
     const sourceName = workflowState.nodes[0].name;
     const destinationName = workflowState.nodes[2].name;
@@ -393,22 +486,93 @@ Let me start by asking about your data source. What type of data source are you 
 
 > **Example:** \`database\`, \`api\`, \`file\`, \`cloud_storage\``;
   } else {
-    // Update workflow with user's answer
-    if (nextField && !isComplete) {
-      updatedWorkflowState = updateWorkflowWithAnswer(
-        workflowState,
-        nextField.fieldName,
-        currentMessage.content
+    // Check if this is a response to an edit request
+    const lastMessage = conversationHistory[conversationHistory.length - 1];
+    const isEditResponse =
+      lastMessage &&
+      lastMessage.content.includes('Which field would you like to edit?');
+
+    if (isEditResponse) {
+      // Parse the edit request to find node and field
+      const editMatch = currentMessage.content.match(
+        /(?:edit|change|update)\s+(?:the\s+)?(\w+)\s+(?:in|from)\s+(.+)/i
       );
-    }
 
-    // Get the next field after updating
-    const updatedNextField = getNextField(updatedWorkflowState);
-    const updatedIsComplete = isWorkflowComplete(updatedWorkflowState);
+      if (editMatch) {
+        const fieldName = editMatch[1];
+        const nodeName = editMatch[2].trim();
 
-    if (updatedIsComplete) {
-      // Workflow is complete
-      responseMessage = `🎉 Excellent! Your workflow configuration is now complete.
+        // Find the node by name
+        const targetNode = workflowState.nodes.find(
+          (node: any) => node.name.toLowerCase() === nodeName.toLowerCase()
+        );
+
+        if (targetNode && targetNode.config[fieldName]) {
+          // Mark the field as unfilled
+          const currentValue = targetNode.config[fieldName];
+          delete targetNode.config[fieldName];
+
+          // Move field from provided to missing
+          const providedIndex =
+            targetNode.data_requirements.provided_fields.indexOf(fieldName);
+          if (providedIndex !== -1) {
+            targetNode.data_requirements.provided_fields.splice(
+              providedIndex,
+              1
+            );
+            targetNode.data_requirements.missing_fields.push(fieldName);
+          }
+
+          // Update node status
+          targetNode.status =
+            targetNode.data_requirements.missing_fields.length === 0
+              ? 'complete'
+              : 'partial';
+
+          updatedWorkflowState = workflowState;
+
+          // Ask for the new value
+          const fieldExamples = {
+            source_type: 'database, api, file, cloud_storage',
+            connection_string: 'jdbc:mysql://localhost:3306/mydb',
+            table_name: 'users, orders, products',
+            operation_type: 'filter, aggregate, join, transform',
+            parameters: '{"condition": "status = active"}',
+            destination_type: 'database, warehouse, api',
+          };
+
+          responseMessage = `Got it! I've marked the **${fieldName}** field in **${nodeName}** as unfilled.
+
+The current value was: \`${currentValue}\`
+
+What would you like to set it to?
+
+> **Example:** \`${fieldExamples[fieldName as keyof typeof fieldExamples] || 'your new value here'}\``;
+        } else {
+          responseMessage = `I couldn't find the field "${fieldName}" in "${nodeName}". Please check the field name and node name and try again.`;
+        }
+      } else {
+        responseMessage = `I didn't understand your edit request. Please specify which field you want to edit and in which node, for example:
+- "Edit the source_type in Data Source"
+- "Change the connection_string in Data Destination"`;
+      }
+    } else {
+      // Update workflow with user's answer
+      if (nextField && !isComplete) {
+        updatedWorkflowState = updateWorkflowWithAnswer(
+          workflowState,
+          nextField.fieldName,
+          currentMessage.content
+        );
+      }
+
+      // Get the next field after updating
+      const updatedNextField = getNextField(updatedWorkflowState);
+      const updatedIsComplete = isWorkflowComplete(updatedWorkflowState);
+
+      if (updatedIsComplete) {
+        // Workflow is complete
+        responseMessage = `🎉 Excellent! Your workflow configuration is now complete.
 
 Here's what we've configured:
 ${updatedWorkflowState.nodes
@@ -421,24 +585,25 @@ ${updatedWorkflowState.nodes
   .join('\n')}
 
 Your data pipeline is ready to be deployed! 🚀`;
-    } else if (updatedNextField) {
-      // Ask for the next field
-      const fieldExamples = {
-        source_type: 'database, api, file, cloud_storage',
-        connection_string: 'jdbc:mysql://localhost:3306/mydb',
-        table_name: 'users, orders, products',
-        operation_type: 'filter, aggregate, join, transform',
-        parameters: '{"condition": "status = active"}',
-        destination_type: 'database, warehouse, api',
-      };
+      } else if (updatedNextField) {
+        // Ask for the next field
+        const fieldExamples = {
+          source_type: 'database, api, file, cloud_storage',
+          connection_string: 'jdbc:mysql://localhost:3306/mydb',
+          table_name: 'users, orders, products',
+          operation_type: 'filter, aggregate, join, transform',
+          parameters: '{"condition": "status = active"}',
+          destination_type: 'database, warehouse, api',
+        };
 
-      responseMessage = `Great! Now I need to know about the **${updatedNextField.fieldName}** for your ${updatedNextField.nodeName}.
+        responseMessage = `Great! Now I need to know about the **${updatedNextField.fieldName}** for your ${updatedNextField.nodeName}.
 
 > **Example:** \`${fieldExamples[updatedNextField.fieldName as keyof typeof fieldExamples] || 'your value here'}\``;
-    } else {
-      // Fallback
-      responseMessage =
-        "I'm not sure what to ask next. Let me check the workflow state.";
+      } else {
+        // Fallback
+        responseMessage =
+          "I'm not sure what to ask next. Let me check the workflow state.";
+      }
     }
   }
 
@@ -459,63 +624,7 @@ Your data pipeline is ready to be deployed! 🚀`;
   return response;
 };
 
-// Helper function to get current workflow state from conversation history
-const getCurrentWorkflowState = (conversationHistory: Message[]): any => {
-  // Find the last message with nodes and connections
-  for (let i = conversationHistory.length - 1; i >= 0; i--) {
-    const message = conversationHistory[i];
-    if (message.nodes && message.connections) {
-      return { nodes: message.nodes, connections: message.connections };
-    }
-  }
-  return null;
-};
-
-// Helper function to generate unique IDs
-const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
 // Function to clear all conversations (in-memory only)
 export const clearAllConversations = (): void => {
   console.log('✅ All conversations cleared (in-memory only)');
 };
-
-export interface Message {
-  id: string;
-  response_to?: string;
-  role: 'user' | 'assistant';
-  type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS';
-  content: string;
-  timestamp: string;
-  message_type?: 'text' | 'markdown';
-  nodes?: DataFlowNode[];
-  connections?: DataFlowConnection[];
-  workflow_complete?: boolean;
-  node_status_updates?: Array<{
-    node_id: string;
-    status: DataFlowNode['status'];
-  }>;
-  status?: 'processing' | 'complete' | 'error';
-}
-
-// Simple interfaces for the hardcoded workflow
-export interface DataFlowNode {
-  id: string;
-  type: 'source' | 'transform' | 'destination';
-  name: string;
-  status: 'pending' | 'partial' | 'complete' | 'error';
-  config?: Record<string, any>;
-  data_requirements?: {
-    required_fields: string[];
-    provided_fields: string[];
-    missing_fields: string[];
-  };
-}
-
-export interface DataFlowConnection {
-  id: string;
-  source: string;
-  target: string;
-  status: 'pending' | 'complete' | 'error';
-}

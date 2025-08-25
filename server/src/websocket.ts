@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { processMessage } from './services/aiService';
+import { Message, processMessage } from './services/aiService';
 
 // Helper function for adding delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -8,48 +8,6 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
-
-export interface Message {
-  id: string; // Unique message ID
-  response_to?: string; // ID of message this responds to (for conversation threading)
-  role: 'user' | 'assistant'; // Who sent the message
-  type: 'MESSAGE' | 'THOUGHT' | 'ERROR' | 'STATUS' | 'GET_NODE_DATA';
-  content: string; // Main message content (or thought content)
-  timestamp: string; // ISO timestamp
-  message_type?: 'text' | 'markdown'; // Type of message content
-
-  // For assistant MESSAGE responses - only include if workflow state changed
-  nodes?: DataFlowNode[];
-  connections?: DataFlowConnection[];
-  workflow_complete?: boolean; // Indicates if the workflow configuration is complete
-
-  // For status updates
-  status?: 'processing' | 'complete' | 'error';
-
-  // For GET_NODE_DATA events
-  node_id?: string;
-}
-
-export interface DataFlowNode {
-  id: string;
-  type: 'source' | 'transform' | 'destination';
-  name: string;
-  status: 'pending' | 'partial' | 'complete' | 'error';
-  config?: Record<string, any>;
-  position?: { x: number; y: number };
-  data_requirements?: {
-    required_fields: string[];
-    provided_fields: string[];
-    missing_fields: string[];
-  };
-}
-
-export interface DataFlowConnection {
-  id: string;
-  source: string;
-  target: string;
-  status: 'pending' | 'complete' | 'error';
-}
 
 // Store conversation history for each WebSocket connection (in-memory only)
 const conversationHistories = new WeakMap<WebSocket, Message[]>();
