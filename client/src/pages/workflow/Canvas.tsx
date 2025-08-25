@@ -107,76 +107,41 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
       {/* Node Content */}
       <div className="w-32 rounded-lg shadow-md bg-background border border-border overflow-hidden">
         {/* Colored Header with Icon+Title and Status Pill */}
-        <motion.div
+        <div
           className={cn(
             'h-12 flex flex-col justify-center px-2',
             getNodeColor(data.type)
           )}
-          layout
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
         >
           {/* Icon and Name - Line 1 */}
-          <motion.div
-            className="flex items-center gap-1 mb-1"
-            layout
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-          >
+          <div className="flex items-center gap-1 mb-1">
             {getNodeIcon(data.type)}
-            <motion.p
-              className="text-[8px] font-medium text-white whitespace-nowrap leading-none"
-              layout
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-            >
+            <p className="text-[8px] font-medium text-white whitespace-nowrap leading-none">
               {data.name}
-            </motion.p>
-          </motion.div>
+            </p>
+          </div>
 
           {/* Status Pill - Line 2 */}
-          <motion.div
-            className="flex justify-start"
-            layout
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-          >
+          <div className="flex justify-start">
             <motion.div
+              key={`status-${data.id}-${data.status}`}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className={cn(
                 'px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5 w-fit',
                 getStatusPillColor(data.status)
               )}
-              layout
-              animate={{
-                backgroundColor:
-                  data.status === 'complete'
-                    ? 'rgba(22, 163, 74, 0.8)'
-                    : data.status === 'partial'
-                      ? 'rgba(249, 115, 22, 0.8)'
-                      : data.status === 'error'
-                        ? 'rgba(239, 68, 68, 0.8)'
-                        : 'rgba(75, 85, 99, 0.8)',
-              }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {getStatusIcon(data.status)}
-              <motion.span
-                layout
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-              >
-                {getStatusText(data.status)}
-              </motion.span>
+              <span>{getStatusText(data.status)}</span>
             </motion.div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* White Content Area - Data Requirements */}
-        <motion.div
-          className="h-24 bg-background p-2"
-          layout
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
-        >
-          <motion.div
-            className="space-y-1"
-            layout
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-          >
+        <div className="h-24 bg-background p-2">
+          <div className="space-y-1">
             {/* Data Requirements List */}
             {data.data_requirements?.required_fields &&
             data.data_requirements.required_fields.length > 0 ? (
@@ -184,29 +149,28 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
                 const isProvided =
                   data.data_requirements?.provided_fields.includes(field);
                 return (
-                  <motion.div
-                    key={field}
-                    className="flex justify-center"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                  >
+                  <div key={field} className="flex justify-center">
                     <motion.span
-                      className={cn(
-                        'text-[8px] truncate max-w-20',
-                        isProvided
-                          ? 'text-green-400 line-through'
-                          : 'text-muted-foreground'
-                      )}
+                      key={`${data.id}-${field}-${isProvided}`}
+                      initial={
+                        isProvided ? { scale: 1.1, opacity: 0.5 } : false
+                      }
                       animate={{
+                        scale: 1,
+                        opacity: 1,
                         color: isProvided ? '#4ade80' : '#6b7280',
                         textDecoration: isProvided ? 'line-through' : 'none',
                       }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      transition={{
+                        duration: 0.3,
+                        ease: 'easeInOut',
+                        delay: isProvided ? 0.1 : 0,
+                      }}
+                      className="text-[8px] truncate max-w-20"
                     >
                       {field}
                     </motion.span>
-                  </motion.div>
+                  </div>
                 );
               })
             ) : (
@@ -219,8 +183,8 @@ const WorkflowNode = ({ data }: { data: DataFlowNode }) => {
                 </div>
               </div>
             )}
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </div>
 
       {/* Output Handle - Hidden */}
@@ -248,7 +212,7 @@ export default function Canvas({ currentWorkflow }: CanvasProps) {
         reactFlowRef.current?.fitView({ padding: 0.3 });
       }, 100);
     }
-  }, [currentWorkflow.nodes, currentWorkflow.connections]);
+  }, [currentWorkflow.nodes.length]); // Only trigger on node count change, not content
 
   // Convert workflow nodes to React Flow nodes
   const nodes: Node[] = currentWorkflow.nodes.map((node, index) => ({
@@ -287,6 +251,12 @@ export default function Canvas({ currentWorkflow }: CanvasProps) {
     node => node.status === 'complete'
   );
 
+  // Create a stable key for React Flow to prevent unnecessary re-renders
+  const workflowKey =
+    currentWorkflow.nodes.length > 0
+      ? `${currentWorkflow.nodes.length}-${currentWorkflow.nodes.map(n => n.status).join('-')}`
+      : 'empty';
+
   return (
     <div className="w-2/3 bg-background/30">
       <div className="h-full">
@@ -295,6 +265,7 @@ export default function Canvas({ currentWorkflow }: CanvasProps) {
             {/* React Flow Canvas - Full Height */}
             <div className="h-full bg-background rounded-lg border border-border">
               <ReactFlow
+                key={workflowKey}
                 ref={reactFlowRef}
                 nodes={nodes}
                 edges={edges}
