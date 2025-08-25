@@ -304,6 +304,54 @@ export interface Message {
   status?: 'processing' | 'complete' | 'error';
 }
 
+// Enhanced workflow field management system
+interface WorkflowField {
+  name: string;
+  type: 'text' | 'password' | 'select' | 'multiselect' | 'textarea';
+  required: boolean;
+  description: string;
+  example: string;
+}
+
+interface EnhancedDataRequirements {
+  required_fields: WorkflowField[];
+  provided_fields: { [key: string]: string }; // field_name -> value
+  missing_fields: string[];
+  node_status: 'pending' | 'partial' | 'complete' | 'error';
+  completion_percentage: number;
+}
+
+// Enhanced node structure with better field management
+export interface EnhancedDataFlowNode {
+  id: string;
+  type: 'source' | 'transform' | 'destination';
+  name: string;
+  status: 'pending' | 'partial' | 'complete' | 'error';
+  config?: Record<string, any>;
+  position?: { x: number; y: number };
+  data_requirements: EnhancedDataRequirements;
+  conversation_context?: {
+    current_field?: string;
+    questions_asked: number;
+    max_questions: number;
+  };
+}
+
+// Enhanced workflow state management
+interface WorkflowState {
+  nodes: EnhancedDataFlowNode[];
+  connections: DataFlowConnection[];
+  current_node_index: number;
+  workflow_complete: boolean;
+  conversation_phase:
+    | 'greeting'
+    | 'source_collection'
+    | 'transform_collection'
+    | 'destination_collection'
+    | 'complete';
+}
+
+// Legacy interface for backward compatibility
 export interface DataFlowNode {
   id: string;
   type: 'source' | 'transform' | 'destination';
@@ -462,8 +510,354 @@ const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
+// Enhanced workflow field definitions
+const WORKFLOW_FIELDS = {
+  source: {
+    shopify: [
+      {
+        name: 'shop_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Your Shopify store name',
+        example: 'my-awesome-store',
+      },
+      {
+        name: 'api_key',
+        type: 'password' as const,
+        required: true,
+        description: 'Shopify API key',
+        example: 'your_shopify_api_key_here',
+      },
+      {
+        name: 'api_secret',
+        type: 'password' as const,
+        required: true,
+        description: 'Shopify API secret',
+        example: 'your_shopify_api_secret_here',
+      },
+    ],
+    database: [
+      {
+        name: 'host',
+        type: 'text' as const,
+        required: true,
+        description: 'Database host and port',
+        example: 'your-db-host.com:5432',
+      },
+      {
+        name: 'database_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Database name',
+        example: 'your_database_name',
+      },
+      {
+        name: 'connection_string',
+        type: 'password' as const,
+        required: true,
+        description: 'Database connection string',
+        example: 'postgresql://username:password@host:5432/database',
+      },
+    ],
+    api: [
+      {
+        name: 'api_url',
+        type: 'text' as const,
+        required: true,
+        description: 'API base URL',
+        example: 'https://api.your-service.com',
+      },
+      {
+        name: 'api_key',
+        type: 'password' as const,
+        required: true,
+        description: 'API key',
+        example: 'your_api_key_here',
+      },
+      {
+        name: 'endpoint',
+        type: 'text' as const,
+        required: true,
+        description: 'API endpoint path',
+        example: '/v1/your-endpoint',
+      },
+    ],
+    default: [
+      {
+        name: 'account_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Account or service name',
+        example: 'your_account_name',
+      },
+      {
+        name: 'username',
+        type: 'text' as const,
+        required: true,
+        description: 'Username or access key',
+        example: 'your_username',
+      },
+      {
+        name: 'password',
+        type: 'password' as const,
+        required: true,
+        description: 'Password or secret key',
+        example: 'your_secure_password',
+      },
+    ],
+  },
+  transform: [
+    {
+      name: 'operation_type',
+      type: 'select' as const,
+      required: true,
+      description: 'Type of transformation',
+      example: 'aggregate, filter, join, transform, or enrich',
+    },
+    {
+      name: 'parameters',
+      type: 'textarea' as const,
+      required: true,
+      description: 'Transformation parameters',
+      example:
+        'group by product_id, sum(sales_amount), filter by date >= 2024-01-01',
+    },
+    {
+      name: 'output_format',
+      type: 'select' as const,
+      required: true,
+      description: 'Output data format',
+      example: 'JSON, CSV, Parquet, or Avro',
+    },
+  ],
+  destination: {
+    snowflake: [
+      {
+        name: 'account_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Snowflake account URL',
+        example: 'your-account.snowflakecomputing.com',
+      },
+      {
+        name: 'username',
+        type: 'text' as const,
+        required: true,
+        description: 'Snowflake username',
+        example: 'your_snowflake_username',
+      },
+      {
+        name: 'warehouse_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Snowflake warehouse',
+        example: 'COMPUTE_WH',
+      },
+    ],
+    database: [
+      {
+        name: 'host',
+        type: 'text' as const,
+        required: true,
+        description: 'Database host and port',
+        example: 'your-db-host.com:5432',
+      },
+      {
+        name: 'database_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Database name',
+        example: 'your_database_name',
+      },
+      {
+        name: 'connection_string',
+        type: 'password' as const,
+        required: true,
+        description: 'Database connection string',
+        example: 'postgresql://username:password@host:5432/database',
+      },
+    ],
+    default: [
+      {
+        name: 'account_name',
+        type: 'text' as const,
+        required: true,
+        description: 'Account or service name',
+        example: 'your_account_name',
+      },
+      {
+        name: 'username',
+        type: 'text' as const,
+        required: true,
+        description: 'Username or access key',
+        example: 'your_username',
+      },
+      {
+        name: 'password',
+        type: 'password' as const,
+        required: true,
+        description: 'Password or secret key',
+        example: 'your_secure_password',
+      },
+    ],
+  },
+};
+
+// Enhanced workflow management functions
+const createEnhancedWorkflowState = (
+  conversationHistory: Message[] = []
+): WorkflowState => {
+  const fieldNames = getContextualFieldNames(conversationHistory);
+
+  const sourceFields =
+    WORKFLOW_FIELDS.source[
+      fieldNames.sourceType as keyof typeof WORKFLOW_FIELDS.source
+    ] || WORKFLOW_FIELDS.source.default;
+  const destinationFields =
+    WORKFLOW_FIELDS.destination[
+      fieldNames.destinationType as keyof typeof WORKFLOW_FIELDS.destination
+    ] || WORKFLOW_FIELDS.destination.default;
+
+  return {
+    nodes: [
+      {
+        id: 'source-node',
+        type: 'source',
+        name: 'Data Source',
+        status: 'pending',
+        config: {},
+        data_requirements: {
+          required_fields: sourceFields,
+          provided_fields: {},
+          missing_fields: sourceFields.map(f => f.name),
+          node_status: 'pending',
+          completion_percentage: 0,
+        },
+        conversation_context: {
+          questions_asked: 0,
+          max_questions: 3,
+        },
+      },
+      {
+        id: 'transform-node',
+        type: 'transform',
+        name: 'Data Transform',
+        status: 'pending',
+        config: {},
+        data_requirements: {
+          required_fields: WORKFLOW_FIELDS.transform,
+          provided_fields: {},
+          missing_fields: WORKFLOW_FIELDS.transform.map(f => f.name),
+          node_status: 'pending',
+          completion_percentage: 0,
+        },
+        conversation_context: {
+          questions_asked: 0,
+          max_questions: 3,
+        },
+      },
+      {
+        id: 'destination-node',
+        type: 'destination',
+        name: 'Data Destination',
+        status: 'pending',
+        config: {},
+        data_requirements: {
+          required_fields: destinationFields,
+          provided_fields: {},
+          missing_fields: destinationFields.map(f => f.name),
+          node_status: 'pending',
+          completion_percentage: 0,
+        },
+        conversation_context: {
+          questions_asked: 0,
+          max_questions: 3,
+        },
+      },
+    ],
+    connections: [
+      {
+        id: 'conn1',
+        source: 'source-node',
+        target: 'transform-node',
+        status: 'pending',
+      },
+      {
+        id: 'conn2',
+        source: 'transform-node',
+        target: 'destination-node',
+        status: 'pending',
+      },
+    ],
+    current_node_index: 0,
+    workflow_complete: false,
+    conversation_phase: 'greeting',
+  };
+};
+
+// Enhanced field detection based on conversation context
+const getContextualFieldNames = (
+  conversationHistory: Message[]
+): {
+  sourceFields: string[];
+  destinationFields: string[];
+  sourceType: string;
+  destinationType: string;
+} => {
+  const conversationText = conversationHistory
+    .map(msg => msg.content)
+    .join(' ')
+    .toLowerCase();
+
+  let sourceType = 'default';
+  let destinationType = 'default';
+
+  // Detect source type
+  if (conversationText.includes('shopify')) {
+    sourceType = 'shopify';
+  } else if (
+    conversationText.includes('mysql') ||
+    conversationText.includes('postgres')
+  ) {
+    sourceType = 'database';
+  } else if (
+    conversationText.includes('api') ||
+    conversationText.includes('rest')
+  ) {
+    sourceType = 'api';
+  }
+
+  // Detect destination type
+  if (conversationText.includes('snowflake')) {
+    destinationType = 'snowflake';
+  } else if (
+    conversationText.includes('mysql') ||
+    conversationText.includes('postgres')
+  ) {
+    destinationType = 'database';
+  }
+
+  const sourceFields =
+    WORKFLOW_FIELDS.source[sourceType as keyof typeof WORKFLOW_FIELDS.source] ||
+    WORKFLOW_FIELDS.source.default;
+  const destinationFields =
+    WORKFLOW_FIELDS.destination[
+      destinationType as keyof typeof WORKFLOW_FIELDS.destination
+    ] || WORKFLOW_FIELDS.destination.default;
+
+  return {
+    sourceFields: sourceFields.map(f => f.name),
+    destinationFields: destinationFields.map(f => f.name),
+    sourceType,
+    destinationType,
+  };
+};
+
 // Helper function to ensure all 3 nodes are always present
-const ensureAllNodesPresent = (nodes: DataFlowNode[]): DataFlowNode[] => {
+const ensureAllNodesPresent = (
+  nodes: DataFlowNode[],
+  conversationHistory: Message[] = []
+): DataFlowNode[] => {
   const requiredNodeIds = ['source-node', 'transform-node', 'destination-node'];
   const existingNodeIds = nodes.map(node => node.id);
 
@@ -471,6 +865,9 @@ const ensureAllNodesPresent = (nodes: DataFlowNode[]): DataFlowNode[] => {
   if (requiredNodeIds.every(id => existingNodeIds.includes(id))) {
     return nodes;
   }
+
+  // Get contextual field names
+  const fieldNames = getContextualFieldNames(conversationHistory);
 
   // Create missing nodes
   const missingNodes: DataFlowNode[] = [];
@@ -483,9 +880,9 @@ const ensureAllNodesPresent = (nodes: DataFlowNode[]): DataFlowNode[] => {
       status: 'pending',
       config: {},
       data_requirements: {
-        required_fields: ['field1', 'field2', 'field3'],
+        required_fields: fieldNames.sourceFields,
         provided_fields: [],
-        missing_fields: ['field1', 'field2', 'field3'],
+        missing_fields: fieldNames.sourceFields,
       },
     });
   }
@@ -513,9 +910,9 @@ const ensureAllNodesPresent = (nodes: DataFlowNode[]): DataFlowNode[] => {
       status: 'pending',
       config: {},
       data_requirements: {
-        required_fields: ['field1', 'field2', 'field3'],
+        required_fields: fieldNames.destinationFields,
         provided_fields: [],
-        missing_fields: ['field1', 'field2', 'field3'],
+        missing_fields: fieldNames.destinationFields,
       },
     });
   }
@@ -645,11 +1042,15 @@ const hasWorkflowStateChanged = (
   return false;
 };
 
-// Helper function to create initial workflow state
-const createInitialWorkflowState = (): {
+// Helper function to create initial workflow state (legacy)
+const createInitialWorkflowState = (
+  conversationHistory: Message[] = []
+): {
   nodes: DataFlowNode[];
   connections: DataFlowConnection[];
 } => {
+  const fieldNames = getContextualFieldNames(conversationHistory);
+
   return {
     nodes: [
       {
@@ -659,9 +1060,9 @@ const createInitialWorkflowState = (): {
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: ['field1', 'field2', 'field3'],
+          required_fields: fieldNames.sourceFields,
           provided_fields: [],
-          missing_fields: ['field1', 'field2', 'field3'],
+          missing_fields: fieldNames.sourceFields,
         },
       },
       {
@@ -683,9 +1084,9 @@ const createInitialWorkflowState = (): {
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: ['field1', 'field2', 'field3'],
+          required_fields: fieldNames.destinationFields,
           provided_fields: [],
-          missing_fields: ['field1', 'field2', 'field3'],
+          missing_fields: fieldNames.destinationFields,
         },
       },
     ],
@@ -823,36 +1224,57 @@ const getFieldExample = (fieldName: string, nodeType: string): string => {
 
   // Source node examples
   if (nodeType === 'source') {
-    if (
-      fieldNameLower.includes('store_url') ||
-      fieldNameLower.includes('url')
-    ) {
-      return 'https://your-store.myshopify.com';
-    } else if (fieldNameLower.includes('api_key')) {
+    // Shopify specific fields
+    if (fieldNameLower === 'shop_name') {
+      return 'my-awesome-store';
+    } else if (fieldNameLower === 'api_key') {
       return 'your_shopify_api_key_here';
-    } else if (
-      fieldNameLower.includes('api_secret') ||
-      fieldNameLower.includes('secret')
-    ) {
-      return 'your_shopify_secret_here';
-    } else if (fieldNameLower.includes('host')) {
+    } else if (fieldNameLower === 'api_secret') {
+      return 'your_shopify_api_secret_here';
+    }
+    // Database specific fields
+    else if (fieldNameLower === 'host') {
       return 'your-db-host.com:5432';
-    } else if (fieldNameLower.includes('database')) {
+    } else if (fieldNameLower === 'database_name') {
       return 'your_database_name';
-    } else if (fieldNameLower.includes('connection_string')) {
+    } else if (fieldNameLower === 'connection_string') {
       return 'postgresql://username:password@host:5432/database';
-    } else if (fieldNameLower.includes('file_path')) {
-      return '/path/to/your/data.csv';
-    } else if (fieldNameLower.includes('delimiter')) {
-      return ',';
-    } else if (fieldNameLower.includes('encoding')) {
-      return 'UTF-8';
-    } else if (fieldNameLower.includes('base_url')) {
+    }
+    // API specific fields
+    else if (fieldNameLower === 'api_url') {
       return 'https://api.your-service.com';
-    } else if (fieldNameLower.includes('auth_method')) {
-      return 'Bearer Token';
-    } else if (fieldNameLower.includes('endpoint')) {
+    } else if (fieldNameLower === 'endpoint') {
       return '/v1/your-endpoint';
+    }
+    // S3 specific fields
+    else if (fieldNameLower === 'bucket_name') {
+      return 'your-data-bucket';
+    } else if (fieldNameLower === 'access_key') {
+      return 'AKIA1234567890ABCDEF';
+    } else if (fieldNameLower === 'secret_key') {
+      return 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+    }
+    // Salesforce specific fields
+    else if (fieldNameLower === 'org_url') {
+      return 'https://your-org.salesforce.com';
+    } else if (fieldNameLower === 'api_token') {
+      return 'your_salesforce_api_token';
+    }
+    // BigQuery specific fields
+    else if (fieldNameLower === 'project_id') {
+      return 'your-gcp-project-id';
+    } else if (fieldNameLower === 'dataset_id') {
+      return 'your_dataset_name';
+    } else if (fieldNameLower === 'service_account_key') {
+      return '{"type": "service_account", "project_id": "..."}';
+    }
+    // Generic fields
+    else if (fieldNameLower === 'account_name') {
+      return 'your_account_name';
+    } else if (fieldNameLower === 'username') {
+      return 'your_username';
+    } else if (fieldNameLower === 'password') {
+      return 'your_secure_password';
     }
   }
 
@@ -869,27 +1291,21 @@ const getFieldExample = (fieldName: string, nodeType: string): string => {
 
   // Destination node examples
   if (nodeType === 'destination') {
-    if (
-      fieldNameLower.includes('account_url') ||
-      fieldNameLower.includes('url')
-    ) {
-      return 'https://your-account.snowflakecomputing.com';
-    } else if (fieldNameLower.includes('username')) {
+    // Snowflake specific fields
+    if (fieldNameLower === 'account_name') {
+      return 'your-account.snowflakecomputing.com';
+    } else if (fieldNameLower === 'username') {
       return 'your_snowflake_username';
-    } else if (fieldNameLower.includes('password')) {
-      return 'your_secure_password';
-    } else if (fieldNameLower.includes('bucket')) {
-      return 'your-data-bucket-name';
-    } else if (fieldNameLower.includes('table')) {
-      return 'your_table_name';
-    } else if (fieldNameLower.includes('sheet')) {
-      return 'Your Sheet Name';
-    } else if (fieldNameLower.includes('warehouse')) {
+    } else if (fieldNameLower === 'warehouse_name') {
       return 'COMPUTE_WH';
-    } else if (fieldNameLower.includes('database')) {
-      return 'YOUR_DATABASE';
-    } else if (fieldNameLower.includes('schema')) {
-      return 'YOUR_SCHEMA';
+    }
+    // Generic destination fields
+    else if (fieldNameLower === 'connection_string') {
+      return 'postgresql://username:password@host:5432/database';
+    }
+    // Generic fields
+    else if (fieldNameLower === 'password') {
+      return 'your_secure_password';
     }
   }
 
@@ -968,7 +1384,7 @@ export const processMessage = async (
       !existingWorkflowState.nodes ||
       existingWorkflowState.nodes.length === 0
     ) {
-      existingWorkflowState = createInitialWorkflowState();
+      existingWorkflowState = createInitialWorkflowState(conversationHistory);
     }
 
     // Convert conversation history to AI format - limit to last 5 messages
@@ -1026,6 +1442,13 @@ export const processMessage = async (
         role: 'system' as const,
         content: `You are a senior data integration consultant with 15+ years of experience. You're helping a senior engineer build a data pipeline workflow.
 
+CRITICAL: NODE STRUCTURE IS THE SOURCE OF TRUTH
+- The workflow nodes define exactly what fields are needed
+- You MUST ask questions based on the field names defined in the node structure
+- Never ask for fields that aren't defined in the node's required_fields array
+- The field names in the nodes determine what you ask for - not the other way around
+- Use the exact field names from the node structure in your questions
+
 PERSONALITY & TONE:
 - Professional, confident, and technically precise
 - Respectful of the user's engineering expertise
@@ -1043,6 +1466,7 @@ COMMUNICATION STYLE:
 WORKFLOW GUIDANCE:
 - Guide the user through the workflow step-by-step
 - Ask for exactly ONE piece of information at a time
+- Ask for the FIRST field in the missing_fields array of the current node
 - Provide clear, practical examples for each field
 - Acknowledge progress and transitions between workflow stages
 - Be proactive about next steps
@@ -1066,7 +1490,7 @@ Remember: You're working with a senior engineer who values efficiency, precision
       ...aiMessages,
       {
         role: 'user' as const,
-        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`".${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: NODE STRUCTURE IS THE SOURCE OF TRUTH. When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`". The field names in the node structure determine what questions to ask - use those exact field names.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
       },
     ];
 
@@ -1082,6 +1506,7 @@ CRITICAL RULES:
 3. ONLY update the values within existing fields
 4. Maintain the exact same node IDs and connection IDs
 5. Preserve all existing field names in required_fields arrays
+6. THE NODE STRUCTURE IS THE SOURCE OF TRUTH - field names in nodes determine what questions to ask
 
 JSON STRUCTURE (MUST MAINTAIN CONSISTENCY):
 {
@@ -1094,7 +1519,7 @@ JSON STRUCTURE (MUST MAINTAIN CONSISTENCY):
       "status": "pending|partial|complete",
       "config": {}, // Always empty
       "data_requirements": {
-        "required_fields": ["field1", "field2", "field3"], // NEVER CHANGE ONCE SET
+        "required_fields": ["field1", "field2", "field3"], // NEVER CHANGE ONCE SET - these determine what questions to ask
         "provided_fields": ["field1"], // Update as user provides data
         "missing_fields": ["field2", "field3"] // Update as user provides data
       }
@@ -1267,7 +1692,7 @@ Remember: CONSISTENCY IS KEY. Never change the structure, only update the values
     // Ensure all nodes are present
     if (parsed.nodes && Array.isArray(parsed.nodes)) {
       if (parsed.nodes.length < 3) {
-        parsed.nodes = ensureAllNodesPresent(parsed.nodes);
+        parsed.nodes = ensureAllNodesPresent(parsed.nodes, conversationHistory);
       }
       console.log(
         '✅ Final nodes structure:',
@@ -1280,7 +1705,10 @@ Remember: CONSISTENCY IS KEY. Never change the structure, only update the values
     // Merge with existing workflow state
     const updatedNodes = parsed.nodes
       ? mergeNodesData(existingWorkflowState.nodes || [], parsed.nodes)
-      : ensureAllNodesPresent(existingWorkflowState.nodes || []);
+      : ensureAllNodesPresent(
+          existingWorkflowState.nodes || [],
+          conversationHistory
+        );
 
     const updatedConnections = parsed.connections ||
       existingWorkflowState.connections || [
@@ -1341,15 +1769,177 @@ export const clearAllConversations = (): void => {
   console.log('✅ All conversations cleared (in-memory only)');
 };
 
+// Enhanced workflow management functions
+const getNextFieldToCollect = (
+  workflowState: WorkflowState
+): { nodeId: string; field: WorkflowField } | null => {
+  const currentNode = workflowState.nodes[workflowState.current_node_index];
+  if (!currentNode) return null;
+
+  const missingFields = currentNode.data_requirements.missing_fields;
+  if (missingFields.length === 0) return null;
+
+  const fieldName = missingFields[0];
+  const field = currentNode.data_requirements.required_fields.find(
+    f => f.name === fieldName
+  );
+
+  return field ? { nodeId: currentNode.id, field } : null;
+};
+
+const updateNodeWithFieldValue = (
+  workflowState: WorkflowState,
+  nodeId: string,
+  fieldName: string,
+  value: string
+): WorkflowState => {
+  const updatedNodes: EnhancedDataFlowNode[] = workflowState.nodes.map(node => {
+    if (node.id !== nodeId) return node;
+
+    const updatedDataRequirements = {
+      ...node.data_requirements,
+      provided_fields: {
+        ...node.data_requirements.provided_fields,
+        [fieldName]: value,
+      },
+      missing_fields: node.data_requirements.missing_fields.filter(
+        f => f !== fieldName
+      ),
+    };
+
+    // Update completion percentage
+    const totalFields = node.data_requirements.required_fields.length;
+    const providedCount = Object.keys(
+      updatedDataRequirements.provided_fields
+    ).length;
+    const completionPercentage = Math.round(
+      (providedCount / totalFields) * 100
+    );
+
+    // Update node status
+    let nodeStatus: 'pending' | 'partial' | 'complete' | 'error' = 'pending';
+    if (completionPercentage === 100) {
+      nodeStatus = 'complete';
+    } else if (completionPercentage > 0) {
+      nodeStatus = 'partial';
+    }
+
+    return {
+      ...node,
+      status: nodeStatus,
+      data_requirements: {
+        ...updatedDataRequirements,
+        node_status: nodeStatus,
+        completion_percentage: completionPercentage,
+      },
+      conversation_context: {
+        current_field: fieldName,
+        questions_asked: (node.conversation_context?.questions_asked || 0) + 1,
+        max_questions: node.conversation_context?.max_questions || 3,
+      },
+    };
+  });
+
+  // Check if current node is complete and move to next
+  const currentNode = updatedNodes[workflowState.current_node_index];
+  let nextNodeIndex = workflowState.current_node_index;
+  let conversationPhase = workflowState.conversation_phase;
+
+  if (currentNode && currentNode.status === 'complete') {
+    if (workflowState.current_node_index < 2) {
+      nextNodeIndex = workflowState.current_node_index + 1;
+      conversationPhase =
+        nextNodeIndex === 1 ? 'transform_collection' : 'destination_collection';
+    } else {
+      conversationPhase = 'complete';
+    }
+  }
+
+  // Update connections
+  const updatedConnections: DataFlowConnection[] =
+    workflowState.connections.map(conn => {
+      if (conn.source === 'source-node' && conn.target === 'transform-node') {
+        const sourceNode = updatedNodes.find(n => n.id === 'source-node');
+        return {
+          ...conn,
+          status:
+            sourceNode?.status === 'complete'
+              ? ('complete' as const)
+              : ('pending' as const),
+        };
+      }
+      if (
+        conn.source === 'transform-node' &&
+        conn.target === 'destination-node'
+      ) {
+        const transformNode = updatedNodes.find(n => n.id === 'transform-node');
+        return {
+          ...conn,
+          status:
+            transformNode?.status === 'complete'
+              ? ('complete' as const)
+              : ('pending' as const),
+        };
+      }
+      return conn;
+    });
+
+  const workflowComplete = updatedNodes.every(
+    node => node.status === 'complete'
+  );
+
+  return {
+    ...workflowState,
+    nodes: updatedNodes,
+    connections: updatedConnections,
+    current_node_index: nextNodeIndex,
+    conversation_phase: conversationPhase,
+    workflow_complete: workflowComplete,
+  };
+};
+
+const generateConversationMessage = (
+  workflowState: WorkflowState,
+  nextField: { nodeId: string; field: WorkflowField } | null
+): string => {
+  if (workflowState.workflow_complete) {
+    return '**🎉 Congratulations!** Your workflow configuration is complete. All data has been collected and your pipeline is ready to be deployed.';
+  }
+
+  if (!nextField) {
+    return '**Processing...** Please wait while I prepare the next step.';
+  }
+
+  const currentNode = workflowState.nodes[workflowState.current_node_index];
+  const nodeType = getCurrentNodeType(nextField.nodeId);
+  const isFirstField =
+    Object.keys(currentNode.data_requirements.provided_fields).length === 0;
+
+  if (isFirstField) {
+    return `**Perfect!** ✨ Now I'll collect information related to **\`${nodeType}\`** configuration.
+
+Let's start with **\`${nextField.field.name}\`**:
+> **Example:** \`${nextField.field.example}\``;
+  }
+
+  return `**Great!** Now let's get your **\`${nextField.field.name}\`**:
+> **Example:** \`${nextField.field.example}\``;
+};
+
 // Export helper functions for testing
 export {
+  // Enhanced functions
+  createEnhancedWorkflowState,
   createInitialWorkflowState,
   ensureAllNodesPresent,
+  generateConversationMessage,
   getCurrentNodeType,
   getFieldExample,
   getNextDataPoint,
+  getNextFieldToCollect,
   isNodeComplete,
   isStartingWorkflow,
   isWorkflowComplete,
   mergeNodesData,
+  updateNodeWithFieldValue,
 };
