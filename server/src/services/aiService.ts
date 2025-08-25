@@ -1071,6 +1071,13 @@ const createDynamicWorkflowState = (
   const sourceName = extractSourceName(conversationHistory);
   const destinationName = extractDestinationName(conversationHistory);
 
+  // Get service-specific fields based on identified services
+  const sourceFields = getServiceSpecificFields(sourceName, 'source');
+  const destinationFields = getServiceSpecificFields(
+    destinationName,
+    'destination'
+  );
+
   return {
     nodes: [
       {
@@ -1080,9 +1087,9 @@ const createDynamicWorkflowState = (
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: ['source_type', 'connection_details', 'data_format'],
+          required_fields: sourceFields,
           provided_fields: [],
-          missing_fields: ['source_type', 'connection_details', 'data_format'],
+          missing_fields: sourceFields,
         },
       },
       {
@@ -1104,17 +1111,9 @@ const createDynamicWorkflowState = (
         status: 'pending',
         config: {},
         data_requirements: {
-          required_fields: [
-            'destination_type',
-            'connection_details',
-            'target_schema',
-          ],
+          required_fields: destinationFields,
           provided_fields: [],
-          missing_fields: [
-            'destination_type',
-            'connection_details',
-            'target_schema',
-          ],
+          missing_fields: destinationFields,
         },
       },
     ],
@@ -1133,6 +1132,95 @@ const createDynamicWorkflowState = (
       },
     ],
   };
+};
+
+// Helper function to get service-specific configuration fields
+const getServiceSpecificFields = (
+  serviceName: string,
+  type: 'source' | 'destination'
+): string[] => {
+  const serviceLower = serviceName.toLowerCase();
+
+  // Source-specific fields
+  if (type === 'source') {
+    if (serviceLower.includes('shopify')) {
+      return ['shop_name', 'api_key', 'api_secret', 'data_entities'];
+    }
+    if (serviceLower.includes('salesforce')) {
+      return ['org_url', 'api_token', 'object_types'];
+    }
+    if (serviceLower.includes('mysql') || serviceLower.includes('postgresql')) {
+      return ['host', 'port', 'database_name', 'username', 'password'];
+    }
+    if (serviceLower.includes('api') || serviceLower.includes('rest')) {
+      return ['api_url', 'authentication_method', 'endpoint_path'];
+    }
+    if (serviceLower.includes('s3')) {
+      return ['bucket_name', 'access_key', 'secret_key', 'file_pattern'];
+    }
+    if (serviceLower.includes('bigquery')) {
+      return ['project_id', 'dataset_id', 'service_account_key'];
+    }
+    if (serviceLower.includes('mongodb')) {
+      return ['connection_string', 'database_name', 'collection_name'];
+    }
+    if (serviceLower.includes('kafka')) {
+      return ['bootstrap_servers', 'topic_name', 'consumer_group'];
+    }
+  }
+
+  // Destination-specific fields
+  if (type === 'destination') {
+    if (serviceLower.includes('snowflake')) {
+      return [
+        'account_url',
+        'warehouse_name',
+        'database_name',
+        'schema_name',
+        'username',
+        'password',
+      ];
+    }
+    if (serviceLower.includes('bigquery')) {
+      return ['project_id', 'dataset_id', 'table_name', 'service_account_key'];
+    }
+    if (serviceLower.includes('redshift')) {
+      return [
+        'cluster_endpoint',
+        'database_name',
+        'username',
+        'password',
+        'schema_name',
+      ];
+    }
+    if (serviceLower.includes('databricks')) {
+      return ['workspace_url', 'access_token', 'catalog_name', 'schema_name'];
+    }
+    if (serviceLower.includes('mysql') || serviceLower.includes('postgresql')) {
+      return [
+        'host',
+        'port',
+        'database_name',
+        'username',
+        'password',
+        'table_name',
+      ];
+    }
+    if (serviceLower.includes('api') || serviceLower.includes('rest')) {
+      return ['api_url', 'authentication_method', 'endpoint_path'];
+    }
+    if (serviceLower.includes('s3')) {
+      return ['bucket_name', 'access_key', 'secret_key', 'file_format'];
+    }
+    if (serviceLower.includes('mongodb')) {
+      return ['connection_string', 'database_name', 'collection_name'];
+    }
+  }
+
+  // Default fields for unknown services
+  return type === 'source'
+    ? ['service_type', 'connection_details', 'data_format']
+    : ['service_type', 'connection_details', 'target_schema'];
 };
 
 // Helper function to extract source name from conversation
@@ -1244,6 +1332,61 @@ const updateExistingNodes = (
       ...node,
       status: newStatus,
     };
+  });
+};
+
+// Helper function to update workflow state when user provides field values
+const updateWorkflowWithUserInput = (
+  existingNodes: DataFlowNode[],
+  userInput: string,
+  conversationHistory: Message[]
+): DataFlowNode[] => {
+  // Find the current node that needs input
+  const nextDataPoint = getNextDataPoint(existingNodes);
+  if (!nextDataPoint) return existingNodes;
+
+  return existingNodes.map(node => {
+    if (node.id !== nextDataPoint.nodeId) return node;
+
+    const dataRequirements = node.data_requirements || {
+      required_fields: [],
+      provided_fields: [],
+      missing_fields: [],
+    };
+
+    // If this field is in missing_fields, move it to provided_fields
+    if (dataRequirements.missing_fields.includes(nextDataPoint.fieldName)) {
+      const updatedProvidedFields = [
+        ...dataRequirements.provided_fields,
+        nextDataPoint.fieldName,
+      ];
+      const updatedMissingFields = dataRequirements.missing_fields.filter(
+        field => field !== nextDataPoint.fieldName
+      );
+
+      // Update node status based on completion
+      let newStatus = node.status;
+      if (
+        updatedMissingFields.length === 0 &&
+        updatedProvidedFields.length > 0
+      ) {
+        newStatus = 'complete';
+      } else if (updatedProvidedFields.length > 0) {
+        newStatus = 'partial';
+      }
+
+      return {
+        ...node,
+        status: newStatus,
+        data_requirements: {
+          ...dataRequirements,
+          provided_fields: updatedProvidedFields,
+          missing_fields: updatedMissingFields,
+        },
+      };
+    }
+
+    return node;
   });
 };
 
@@ -1373,95 +1516,115 @@ const getCurrentNodeType = (nodeId: string): string => {
 const getFieldExample = (fieldName: string, nodeType: string): string => {
   const fieldNameLower = fieldName.toLowerCase();
 
-  // Source node examples
-  if (nodeType === 'source') {
-    // Shopify specific fields
-    if (fieldNameLower === 'shop_name') {
-      return 'my-awesome-store';
-    } else if (fieldNameLower === 'api_key') {
-      return 'your_shopify_api_key_here';
-    } else if (fieldNameLower === 'api_secret') {
-      return 'your_shopify_api_secret_here';
-    }
-    // Database specific fields
-    else if (fieldNameLower === 'host') {
-      return 'your-db-host.com:5432';
-    } else if (fieldNameLower === 'database_name') {
-      return 'your_database_name';
-    } else if (fieldNameLower === 'connection_string') {
-      return 'postgresql://username:password@host:5432/database';
-    }
-    // API specific fields
-    else if (fieldNameLower === 'api_url') {
-      return 'https://api.your-service.com';
-    } else if (fieldNameLower === 'endpoint') {
-      return '/v1/your-endpoint';
-    }
-    // S3 specific fields
-    else if (fieldNameLower === 'bucket_name') {
-      return 'your-data-bucket';
-    } else if (fieldNameLower === 'access_key') {
-      return 'AKIA1234567890ABCDEF';
-    } else if (fieldNameLower === 'secret_key') {
-      return 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
-    }
-    // Salesforce specific fields
-    else if (fieldNameLower === 'org_url') {
-      return 'https://your-org.salesforce.com';
-    } else if (fieldNameLower === 'api_token') {
-      return 'your_salesforce_api_token';
-    }
-    // BigQuery specific fields
-    else if (fieldNameLower === 'project_id') {
-      return 'your-gcp-project-id';
-    } else if (fieldNameLower === 'dataset_id') {
-      return 'your_dataset_name';
-    } else if (fieldNameLower === 'service_account_key') {
-      return '{"type": "service_account", "project_id": "..."}';
-    }
-    // Generic fields
-    else if (fieldNameLower === 'account_name') {
-      return 'your_account_name';
-    } else if (fieldNameLower === 'username') {
-      return 'your_username';
-    } else if (fieldNameLower === 'password') {
-      return 'your_secure_password';
-    }
+  // Shopify specific fields
+  if (fieldNameLower === 'shop_name') {
+    return 'my-awesome-store';
+  } else if (fieldNameLower === 'api_key') {
+    return 'your_shopify_api_key_here';
+  } else if (fieldNameLower === 'api_secret') {
+    return 'your_shopify_api_secret_here';
+  } else if (fieldNameLower === 'data_entities') {
+    return 'orders, products, customers, inventory';
+  }
+
+  // Snowflake specific fields
+  else if (fieldNameLower === 'account_url') {
+    return 'your-account.snowflakecomputing.com';
+  } else if (fieldNameLower === 'warehouse_name') {
+    return 'COMPUTE_WH';
+  } else if (fieldNameLower === 'database_name') {
+    return 'ANALYTICS_DB';
+  } else if (fieldNameLower === 'schema_name') {
+    return 'PUBLIC';
+  }
+
+  // Salesforce specific fields
+  else if (fieldNameLower === 'org_url') {
+    return 'https://your-org.salesforce.com';
+  } else if (fieldNameLower === 'api_token') {
+    return 'your_salesforce_api_token';
+  } else if (fieldNameLower === 'object_types') {
+    return 'Account, Contact, Opportunity, Lead';
+  }
+
+  // Database specific fields
+  else if (fieldNameLower === 'host') {
+    return 'your-db-host.com';
+  } else if (fieldNameLower === 'port') {
+    return '5432';
+  } else if (fieldNameLower === 'database_name') {
+    return 'your_database_name';
+  } else if (fieldNameLower === 'connection_string') {
+    return 'postgresql://username:password@host:5432/database';
+  } else if (fieldNameLower === 'table_name') {
+    return 'your_table_name';
+  }
+
+  // API specific fields
+  else if (fieldNameLower === 'api_url') {
+    return 'https://api.your-service.com';
+  } else if (fieldNameLower === 'authentication_method') {
+    return 'bearer_token, api_key, oauth2, basic_auth';
+  } else if (fieldNameLower === 'endpoint_path') {
+    return '/v1/your-endpoint';
+  }
+
+  // S3 specific fields
+  else if (fieldNameLower === 'bucket_name') {
+    return 'your-data-bucket';
+  } else if (fieldNameLower === 'access_key') {
+    return 'your_aws_access_key_here';
+  } else if (fieldNameLower === 'secret_key') {
+    return 'your_aws_secret_key_here';
+  } else if (fieldNameLower === 'file_pattern') {
+    return '*.csv, *.json, data/*.parquet';
+  } else if (fieldNameLower === 'file_format') {
+    return 'CSV, JSON, Parquet, Avro';
+  }
+
+  // BigQuery specific fields
+  else if (fieldNameLower === 'project_id') {
+    return 'your-gcp-project-id';
+  } else if (fieldNameLower === 'dataset_id') {
+    return 'your_dataset_name';
+  } else if (fieldNameLower === 'service_account_key') {
+    return '{"type": "service_account", "project_id": "..."}';
+  }
+
+  // MongoDB specific fields
+  else if (fieldNameLower === 'collection_name') {
+    return 'your_collection_name';
+  }
+
+  // Kafka specific fields
+  else if (fieldNameLower === 'bootstrap_servers') {
+    return 'localhost:9092, kafka1:9092, kafka2:9092';
+  } else if (fieldNameLower === 'topic_name') {
+    return 'your-topic-name';
+  } else if (fieldNameLower === 'consumer_group') {
+    return 'your-consumer-group';
+  }
+
+  // Databricks specific fields
+  else if (fieldNameLower === 'workspace_url') {
+    return 'https://your-workspace.cloud.databricks.com';
+  } else if (fieldNameLower === 'access_token') {
+    return 'your_databricks_access_token';
+  } else if (fieldNameLower === 'catalog_name') {
+    return 'your_catalog_name';
   }
 
   // Transform node examples
-  if (nodeType === 'data transformation') {
-    if (fieldNameLower.includes('operation_type')) {
-      return 'aggregate, filter, join, transform, or enrich';
-    } else if (fieldNameLower.includes('parameters')) {
-      return 'group by product_id, sum(sales_amount), filter by date >= 2024-01-01';
-    } else if (fieldNameLower.includes('output_format')) {
-      return 'JSON, CSV, Parquet, or Avro';
-    }
+  else if (fieldNameLower === 'operation_type') {
+    return 'aggregate, filter, join, transform, or enrich';
+  } else if (fieldNameLower === 'parameters') {
+    return 'group by product_id, sum(sales_amount), filter by date >= 2024-01-01';
+  } else if (fieldNameLower === 'output_format') {
+    return 'JSON, CSV, Parquet, or Avro';
   }
 
-  // Destination node examples
-  if (nodeType === 'destination') {
-    // Snowflake specific fields
-    if (fieldNameLower === 'account_name') {
-      return 'your-account.snowflakecomputing.com';
-    } else if (fieldNameLower === 'username') {
-      return 'your_snowflake_username';
-    } else if (fieldNameLower === 'warehouse_name') {
-      return 'COMPUTE_WH';
-    }
-    // Generic destination fields
-    else if (fieldNameLower === 'connection_string') {
-      return 'postgresql://username:password@host:5432/database';
-    }
-    // Generic fields
-    else if (fieldNameLower === 'password') {
-      return 'your_secure_password';
-    }
-  }
-
-  // Generic examples
-  if (fieldNameLower.includes('username')) {
+  // Generic fields
+  else if (fieldNameLower.includes('username')) {
     return 'your_username';
   } else if (fieldNameLower.includes('password')) {
     return 'your_secure_password';
@@ -1641,7 +1804,26 @@ Remember: You're working with a senior engineer who values efficiency, precision
       ...aiMessages,
       {
         role: 'user' as const,
-        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}${transitionInfo}\n\nCRITICAL: NODE STRUCTURE IS THE SOURCE OF TRUTH. When user provides a field value, you MUST update the workflow state by: 1) Adding the field name to provided_fields array, 2) Removing the field name from missing_fields array, 3) Updating node status if needed. CRITICAL: Always ask for the FIRST field in the missing_fields array of the current node. Ask for exactly ONE data point at a time. Use graceful transition messages when starting or completing nodes. IMPORTANT: Format your messages beautifully using markdown formatting. CRITICAL: Every question asking for user input MUST include an example in the format "> **Example:** \`[sample example]\`". The field names in the node structure determine what questions to ask - use those exact field names.${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
+        content: `CURRENT WORKFLOW STATE:\n${JSON.stringify(existingWorkflowState, null, 2)}
+
+USER'S LATEST RESPONSE: "${currentMessage.content}"
+
+CRITICAL INSTRUCTIONS:
+1. If the user provided a value for a field, update the workflow state:
+   - Add the field name to the node's provided_fields array
+   - Remove the field name from the node's missing_fields array
+   - Update the node status (pending → partial → complete)
+   - Move to the next missing field in the same node or next node
+
+2. Always ask for the FIRST field in the missing_fields array of the current node
+3. Ask for exactly ONE data point at a time
+4. Use graceful transition messages when starting or completing nodes
+5. Format messages beautifully using markdown
+6. Every question MUST include an example: "> **Example:** \`[sample example]\`"
+
+${transitionInfo}
+
+${isStartingWorkflowNow ? ' NOTE: After the greeting, automatically ask for the first field in the next message.' : ''}`,
       },
     ];
 
@@ -1886,10 +2068,17 @@ CRITICAL: Only update values if user explicitly provides the answer to the curre
       updatedNodes = initialState.nodes;
       updatedConnections = initialState.connections;
     } else {
-      // Update existing nodes based on AI response
+      // Update existing nodes based on AI response and user input
       updatedNodes = updateExistingNodes(
         updatedNodes,
         parsed,
+        conversationHistory
+      );
+
+      // Also update based on user's latest input
+      updatedNodes = updateWorkflowWithUserInput(
+        updatedNodes,
+        currentMessage.content,
         conversationHistory
       );
     }
