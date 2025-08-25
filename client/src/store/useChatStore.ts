@@ -21,6 +21,7 @@ interface ChatState {
   setError: (error: string | null) => void;
   clearMessages: () => void;
   addUserMessage: (content: string) => void;
+  updateNodeStatus: (nodeId: string, status: DataFlowNode['status']) => void;
   getCurrentWorkflowState: () => {
     nodes: DataFlowNode[];
     connections: DataFlowConnection[];
@@ -31,8 +32,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Initial state
   messages: [],
   currentWorkflow: {
-    nodes: [],
-    connections: [],
+    nodes: [
+      {
+        id: 'source-node',
+        type: 'source',
+        name: 'Data Source',
+        status: 'pending',
+        position: { x: 100, y: 200 },
+      },
+      {
+        id: 'transform-node',
+        type: 'transform',
+        name: 'Data Transform',
+        status: 'pending',
+        position: { x: 400, y: 200 },
+      },
+      {
+        id: 'destination-node',
+        type: 'destination',
+        name: 'Data Destination',
+        status: 'pending',
+        position: { x: 700, y: 200 },
+      },
+    ],
+    connections: [
+      {
+        id: 'conn-1',
+        source: 'source-node',
+        target: 'transform-node',
+        status: 'pending',
+      },
+      {
+        id: 'conn-2',
+        source: 'transform-node',
+        target: 'destination-node',
+        status: 'pending',
+      },
+    ],
   },
   currentThought: null,
   workflowComplete: false,
@@ -48,12 +84,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? [...state.messages, message]
           : state.messages;
 
-      // ALWAYS update workflow state if message contains nodes/connections
-      // This ensures we maintain the complete state from the server
-      const newWorkflow =
-        message.nodes && message.connections
-          ? { nodes: message.nodes, connections: message.connections }
-          : state.currentWorkflow;
+      // Handle individual node status updates
+      let newWorkflow = state.currentWorkflow;
+      
+      if (message.node_status_updates && message.node_status_updates.length > 0) {
+        // Update individual node statuses
+        newWorkflow = {
+          ...state.currentWorkflow,
+          nodes: state.currentWorkflow.nodes.map(node => {
+            const update = message.node_status_updates?.find(u => u.node_id === node.id);
+            return update ? { ...node, status: update.status } : node;
+          }),
+        };
+      } else if (message.nodes && message.connections) {
+        // Full workflow state update (fallback)
+        newWorkflow = { nodes: message.nodes, connections: message.connections };
+      }
 
       // Update workflow completion status
       const newWorkflowComplete =
@@ -100,6 +146,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         currentThought: null, // Clear thought when user sends a message
       };
     }),
+
+  updateNodeStatus: (nodeId: string, status: DataFlowNode['status']) =>
+    set(state => ({
+      currentWorkflow: {
+        ...state.currentWorkflow,
+        nodes: state.currentWorkflow.nodes.map(node =>
+          node.id === nodeId ? { ...node, status } : node
+        ),
+      },
+    })),
 
   getCurrentWorkflowState: () => get().currentWorkflow,
 }));

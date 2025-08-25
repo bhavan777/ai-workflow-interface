@@ -300,6 +300,12 @@ export interface Message {
   connections?: DataFlowConnection[];
   workflow_complete?: boolean; // Indicates if the workflow configuration is complete
 
+  // For individual node status updates
+  node_status_updates?: Array<{
+    node_id: string;
+    status: DataFlowNode['status'];
+  }>;
+
   // For status updates
   status?: 'processing' | 'complete' | 'error';
 }
@@ -1764,6 +1770,12 @@ CRITICAL: Only update values if user explicitly provides the answer to the curre
     // Check if workflow is complete
     const workflowComplete = isWorkflowComplete(updatedNodes || []);
 
+    // Create individual node status updates
+    const nodeStatusUpdates = updatedNodes?.map(node => ({
+      node_id: node.id,
+      status: node.status,
+    })) || [];
+
     // Create the final response
     const response: Message = {
       id: generateId(),
@@ -1773,8 +1785,7 @@ CRITICAL: Only update values if user explicitly provides the answer to the curre
       content: parsed.message,
       message_type: 'markdown',
       timestamp: new Date().toISOString(),
-      nodes: updatedNodes,
-      connections: updatedConnections,
+      node_status_updates: nodeStatusUpdates,
       workflow_complete: workflowComplete,
     };
 

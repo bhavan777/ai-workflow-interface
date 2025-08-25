@@ -12,6 +12,12 @@ export interface Message {
   connections?: DataFlowConnection[];
   workflow_complete?: boolean; // Indicates if the workflow configuration is complete
 
+  // For individual node status updates
+  node_status_updates?: Array<{
+    node_id: string;
+    status: DataFlowNode['status'];
+  }>;
+
   // For status updates
   status?: 'processing' | 'complete' | 'error';
 }
