@@ -122,20 +122,6 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
       })
     );
 
-    // Add initial delay before first thought
-    await delay(500);
-
-    // Send thought before processing
-    ws.send(
-      JSON.stringify({
-        id: generateId(),
-        role: 'assistant',
-        type: 'THOUGHT',
-        content: '🔍 Analyzing your workflow requirements...',
-        timestamp: new Date().toISOString(),
-      })
-    );
-
     // If this is a new workflow request, clear history
     const isNewWorkflow =
       conversationHistory.length === 0 ||
@@ -162,16 +148,8 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
       filteredHistory,
       { ...message, type: 'MESSAGE' as const },
       async (thought: string) => {
-        // Send additional thoughts during processing
-        ws.send(
-          JSON.stringify({
-            id: generateId(),
-            role: 'assistant',
-            type: 'THOUGHT',
-            content: thought,
-            timestamp: new Date().toISOString(),
-          })
-        );
+        // No longer sending thoughts to client
+        console.log('💭 AI thought:', thought);
       }
     );
 
@@ -187,18 +165,6 @@ const handleMessage = async (ws: WebSocket, message: Message) => {
 
     // Send the response
     ws.send(JSON.stringify(response));
-
-    // Clear thoughts after processing is complete
-    await delay(100);
-    ws.send(
-      JSON.stringify({
-        id: generateId(),
-        role: 'assistant',
-        type: 'THOUGHT',
-        content: '', // Empty content to clear thoughts
-        timestamp: new Date().toISOString(),
-      })
-    );
 
     // Log the workflow state being sent
     if (response.nodes && response.connections) {
@@ -302,6 +268,7 @@ const handleGetNodeData = async (ws: WebSocket, message: Message) => {
         type: 'NODE_DATA',
         node_id: nodeId,
         node_title: node.name,
+        node_status: node.status,
         filled_values: filledValues,
         timestamp: new Date().toISOString(),
       })

@@ -58,7 +58,7 @@ export default function TryWorkflows() {
   ];
 
   return (
-    <div className="max-w-4xl py-16 mx-auto mb-16">
+    <div className="max-w-4xl py-16 mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-foreground mb-4">
           Start Building Your Workflow

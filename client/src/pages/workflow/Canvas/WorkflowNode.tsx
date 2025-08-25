@@ -14,22 +14,30 @@ import { Handle, Position } from 'reactflow';
 interface WorkflowNodeProps {
   data: DataFlowNode & {
     onNodeClick?: (nodeId: string) => void;
+    nodeWidth?: number;
+    isVerticalLayout?: boolean;
   };
 }
 
-export default function WorkflowNode({ data, onNodeClick }: WorkflowNodeProps) {
+export default function WorkflowNode({ data }: WorkflowNodeProps) {
+  const nodeWidth = data.nodeWidth || 320; // Default to 320px if not provided
+  const isVerticalLayout = data.isVerticalLayout || false;
   const getNodeIcon = (type: string) => {
+    const iconSize =
+      nodeWidth < 300 ? 'size-5' : nodeWidth > 340 ? 'size-7' : 'size-6';
     switch (type) {
       case 'source':
-        return <Database className="size-6 text-white" />;
+        return <Database className={`${iconSize} text-white`} />;
       case 'transform':
         return (
-          <Settings className="size-6 text-white animate-spin [animation-duration:5s]" />
+          <Settings
+            className={`${iconSize} text-white animate-spin [animation-duration:5s]`}
+          />
         );
       case 'destination':
-        return <Zap className="size-6 text-white" />;
+        return <Zap className={`${iconSize} text-white`} />;
       default:
-        return <Settings className="size-6 text-white" />;
+        return <Settings className={`${iconSize} text-white`} />;
     }
   };
 
@@ -87,36 +95,58 @@ export default function WorkflowNode({ data, onNodeClick }: WorkflowNodeProps) {
 
   return (
     <div className="relative">
-      {/* Input Handle - Hidden */}
+      {/* Input Handle - Dynamic based on layout */}
       <Handle
         type="target"
-        position={Position.Left}
+        position={isVerticalLayout ? Position.Top : Position.Left}
         className="w-3 h-3 bg-gray-400 border-2 border-white opacity-0"
       />
 
-      {/* Node Type Label - Above Card */}
-      <div className="absolute -top-7 left-1/2 transform -translate-x-1/2">
-        <p className="text-[14px] font-light text-muted-foreground capitalize">
+      {/* Node Type Label - Dynamic positioning based on layout */}
+
+      <div
+        className={`absolute ${
+          isVerticalLayout
+            ? '-right-20 top-1/2 transform -translate-y-1/2'
+            : '-top-7 left-1/2 transform -translate-x-1/2'
+        }`}
+      >
+        <p
+          className={`text-[14px] font-light text-muted-foreground capitalize ${
+            isVerticalLayout ? 'rotate-90 origin-center' : ''
+          }`}
+        >
           {data.type}
         </p>
       </div>
 
       {/* Node Content */}
       <div
-        className="w-80 rounded-lg shadow-md bg-background border border-border overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        className="rounded-lg shadow-md bg-background border border-border overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        style={{ width: `${nodeWidth}px` }}
         onClick={() => data.onNodeClick?.(data.id)}
       >
         {/* Colored Header with Icon+Title and Status Pill */}
         <div
           className={cn(
-            'h-20 flex flex-col justify-center px-3',
+            'flex flex-col justify-center px-3',
             getNodeColor(data.type)
           )}
+          style={{
+            height:
+              nodeWidth < 300 ? '64px' : nodeWidth > 340 ? '88px' : '80px',
+          }}
         >
           {/* Icon and Name - Line 1 */}
           <div className="flex items-center gap-2 mb-2">
             {getNodeIcon(data.type)}
-            <p className="text-[20px] font-medium text-white whitespace-nowrap leading-none">
+            <p
+              className="font-medium text-white whitespace-nowrap leading-none"
+              style={{
+                fontSize:
+                  nodeWidth < 300 ? '16px' : nodeWidth > 340 ? '24px' : '20px',
+              }}
+            >
               {data.name}
             </p>
           </div>
@@ -136,7 +166,13 @@ export default function WorkflowNode({ data, onNodeClick }: WorkflowNodeProps) {
         </div>
 
         {/* White Content Area - Data Requirements */}
-        <div className="h-48 bg-background px-4 py-2">
+        <div
+          className="bg-background px-4 py-2"
+          style={{
+            height:
+              nodeWidth < 300 ? '160px' : nodeWidth > 340 ? '200px' : '192px',
+          }}
+        >
           <div className="space-y-3">
             {/* Data Requirements List */}
             {data.data_requirements?.required_fields &&
@@ -183,10 +219,10 @@ export default function WorkflowNode({ data, onNodeClick }: WorkflowNodeProps) {
         </div>
       </div>
 
-      {/* Output Handle - Hidden */}
+      {/* Output Handle - Dynamic based on layout */}
       <Handle
         type="source"
-        position={Position.Right}
+        position={isVerticalLayout ? Position.Bottom : Position.Right}
         className="w-3 h-3 bg-gray-400 border-2 border-white opacity-0"
       />
     </div>

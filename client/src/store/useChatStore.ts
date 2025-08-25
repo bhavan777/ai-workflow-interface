@@ -8,7 +8,6 @@ interface ChatState {
     nodes: DataFlowNode[];
     connections: DataFlowConnection[];
   };
-  currentThought: Message | null;
   workflowComplete: boolean;
   isLoading: boolean;
   error: string | null;
@@ -24,7 +23,6 @@ interface ChatState {
 
   // Actions
   addMessage: (message: Message) => void;
-  setCurrentThought: (thought: Message | null) => void;
   setWorkflowComplete: (complete: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -57,7 +55,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     nodes: [],
     connections: [],
   },
-  currentThought: null,
   workflowComplete: false,
   isLoading: false,
   error: null,
@@ -114,9 +111,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
 
-  setCurrentThought: (thought: Message | null) =>
-    set({ currentThought: thought }),
-
   setWorkflowComplete: complete => set({ workflowComplete: complete }),
 
   setLoading: loading => set({ isLoading: loading }),
@@ -127,7 +121,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({
       messages: [],
       currentWorkflow: { nodes: [], connections: [] },
-      currentThought: null,
       workflowComplete: false,
       error: null,
       nodeData: null,
@@ -146,7 +139,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
       return {
         messages: [...state.messages, userMessage],
-        currentThought: null, // Clear thought when user sends a message
       };
     }),
 

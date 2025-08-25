@@ -16,7 +16,7 @@ export default function Messages({
   isWorkflowComplete = false,
   onRetry,
 }: MessagesProps) {
-  const { currentThought } = useChat();
+  const { isLoading } = useChat();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -30,14 +30,14 @@ export default function Messages({
         });
       });
     }
-  }, [messages, currentThought]);
+  }, [messages, isLoading]);
 
   // Filter out THOUGHT and STATUS messages since they're handled separately
   const displayMessages = messages.filter(
     message => message.type !== 'THOUGHT' && message.type !== 'STATUS'
   );
 
-  if (displayMessages.length === 0 && !currentThought) {
+  if (displayMessages.length === 0 && !isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <p className="text-sm">
@@ -76,7 +76,7 @@ export default function Messages({
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {currentThought && (
+        {isLoading && (
           <motion.div
             key="wave-loader"
             initial={{ opacity: 0, y: 20, maxHeight: 0 }}

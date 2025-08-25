@@ -42,6 +42,7 @@ export interface NodeDataResponse {
   type: 'NODE_DATA';
   node_id: string;
   node_title: string;
+  node_status?: 'pending' | 'partial' | 'complete' | 'error';
   filled_values: Record<string, string>; // field_name -> value or "Not filled"
 }
 

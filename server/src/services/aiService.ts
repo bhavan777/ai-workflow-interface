@@ -186,17 +186,57 @@ const detectServiceTypes = (
   return { sourceType, destinationType };
 };
 
+// Parse workflow description to extract source and destination names
+const parseWorkflowDescription = (
+  description: string
+): {
+  source?: string;
+  destination?: string;
+  hasTransform?: boolean;
+} => {
+  const trimmed = description.trim();
+
+  // Check for "to" pattern (source to destination)
+  const toPattern = /^(.+?)\s+to\s+(.+)$/i;
+  const toMatch = trimmed.match(toPattern);
+
+  if (toMatch) {
+    return {
+      source: toMatch[1].trim(),
+      destination: toMatch[2].trim(),
+      hasTransform: false,
+    };
+  }
+
+  // Check for transformation patterns
+  const transformPatterns = [
+    /data\s+transformation/i,
+    /transform\s+data/i,
+    /clean\s+and\s+transform/i,
+    /process\s+data/i,
+  ];
+
+  const isTransform = transformPatterns.some(pattern => pattern.test(trimmed));
+
+  if (isTransform) {
+    return {
+      hasTransform: true,
+    };
+  }
+
+  return {};
+};
+
 // Create a simple hardcoded workflow structure with dynamic names
-const createHardcodedWorkflow = (
-  sourceType?: string,
-  destinationType?: string
-) => {
+const createHardcodedWorkflow = (description: string) => {
+  const parsed = parseWorkflowDescription(description);
+
   return {
     nodes: [
       {
         id: 'source-node',
         type: 'source',
-        name: sourceType || 'Data Source',
+        name: parsed.source || 'Data Source',
         status: 'pending',
         config: {},
         data_requirements: {
@@ -220,7 +260,7 @@ const createHardcodedWorkflow = (
       {
         id: 'destination-node',
         type: 'destination',
-        name: destinationType || 'Data Destination',
+        name: parsed.destination || 'Data Destination',
         status: 'pending',
         config: {},
         data_requirements: {
@@ -320,14 +360,11 @@ export const processMessage = async (
   let workflowState = getCurrentWorkflowState(conversationHistory);
 
   if (isFirstMessage) {
-    // Detect service types from the first message
-    const { sourceType, destinationType } = detectServiceTypes(
-      currentMessage.content
-    );
-    workflowState = createHardcodedWorkflow(sourceType, destinationType);
+    // Create workflow based on the description
+    workflowState = createHardcodedWorkflow(currentMessage.content);
   } else if (!workflowState) {
     // Fallback if no workflow state found
-    workflowState = createHardcodedWorkflow();
+    workflowState = createHardcodedWorkflow('Data Source to Data Destination');
   }
 
   // Get next field to ask for
@@ -343,6 +380,7 @@ export const processMessage = async (
     // First message - greet and explain with detected services
     const sourceName = workflowState.nodes[0].name;
     const destinationName = workflowState.nodes[2].name;
+    const parsed = parseWorkflowDescription(currentMessage.content);
 
     responseMessage = `👋 Hello! I'm here to help you configure your data pipeline workflow.
 

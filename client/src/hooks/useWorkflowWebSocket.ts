@@ -11,7 +11,6 @@ export const useWorkflowWebSocket = () => {
   // Get store actions
   const {
     addMessage,
-    setCurrentThought,
     setLoading,
     setNodeData,
     setNodeDataLoading,
@@ -41,12 +40,6 @@ export const useWorkflowWebSocket = () => {
     (message: Message) => {
       console.log('📨 Received message:', message);
 
-      // Handle thoughts separately (server-sent only)
-      if (message.type === 'THOUGHT') {
-        setCurrentThought(message);
-        return;
-      }
-
       // Handle node data messages
       if (
         message.type === 'NODE_DATA' ||
@@ -63,16 +56,14 @@ export const useWorkflowWebSocket = () => {
       if (message.type === 'STATUS') {
         setLoading(message.status === 'processing');
       } else if (message.type === 'MESSAGE' && message.role === 'assistant') {
-        // Assistant message received, stop loading and clear thought
+        // Assistant message received, stop loading
         setLoading(false);
-        setCurrentThought(null); // Clear thought when AI responds
       } else if (message.type === 'ERROR') {
-        // Error received, stop loading and clear thought
+        // Error received, stop loading
         setLoading(false);
-        setCurrentThought(null); // Clear thought on error
       }
     },
-    [setLoading, addMessage, setCurrentThought, handleNodeDataMessage]
+    [setLoading, addMessage, handleNodeDataMessage]
   );
 
   const connect = useCallback((): Promise<void> => {

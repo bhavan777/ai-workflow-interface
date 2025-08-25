@@ -18,7 +18,7 @@ export default function Canvas({
   isConnecting = false,
   onNodeDataRequest,
 }: CanvasProps) {
-  const { nodeData, clearNodeData } = useChatStore();
+  const { nodeData, clearNodeData, isLoading } = useChatStore();
 
   const handleNodeClick = (nodeId: string) => {
     onNodeDataRequest(nodeId);
@@ -40,7 +40,7 @@ export default function Canvas({
             />
           </div>
         ) : (
-          <EmptyState isConnecting={isConnecting} />
+          <EmptyState isConnecting={isConnecting} isLoading={isLoading} />
         )}
       </div>
 
