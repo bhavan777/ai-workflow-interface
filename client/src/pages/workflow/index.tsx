@@ -17,15 +17,19 @@ export default function Workflow() {
     addUserMessage,
     setLoadingState,
     sendNodeDataRequest,
+    clearConversation,
   } = useChat();
 
   // Initialize WebSocket (now handles all message processing internally)
   const { connect, sendUserMessage, sendMessage, isConnecting } =
     useWorkflowWebSocket();
 
-  // Connect to WebSocket when component mounts
+  // Connect to WebSocket and clear previous session when component mounts
   useEffect(() => {
     if (hasInitialized.current) return;
+
+    // Clear any previous conversation data to ensure fresh start
+    clearConversation();
 
     const initializeWebSocket = async () => {
       try {
@@ -37,7 +41,7 @@ export default function Workflow() {
     };
 
     initializeWebSocket();
-  }, [connect]);
+  }, [connect, clearConversation]);
 
   // Handle initial message from navigation
   useEffect(() => {
@@ -57,6 +61,9 @@ export default function Workflow() {
     setLoadingState(true);
 
     try {
+      // Reset store to ensure fresh conversation
+      clearConversation();
+
       // Add user message to store (dummy assistant message is added automatically)
       addUserMessage(description);
 
@@ -100,6 +107,15 @@ export default function Workflow() {
   const handleNodeDataRequest = (nodeId: string) => {
     sendNodeDataRequest(nodeId, sendMessage);
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Reset initialization flags when component unmounts
+      hasInitialized.current = false;
+      hasStartedConversation.current = false;
+    };
+  }, []);
 
   return (
     <>

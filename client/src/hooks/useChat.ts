@@ -24,11 +24,12 @@ export const useChat = () => {
     setNodeDataLoading,
     setNodeDataError,
     clearNodeData,
+    resetStore,
   } = useChatStore();
 
   const clearConversation = useCallback(() => {
-    clearMessages();
-  }, [clearMessages]);
+    resetStore(); // Use resetStore instead of clearMessages for complete cleanup
+  }, [resetStore]);
 
   const setLoadingState = useCallback(
     (loading: boolean) => {
@@ -95,6 +96,7 @@ export const useChat = () => {
     setNodeDataLoading,
     setNodeDataError,
     clearNodeData,
+    resetStore,
     handleNodeDataMessage,
     sendNodeDataRequest,
   };

@@ -51,6 +51,7 @@ interface ChatState {
   setNodeDataLoading: (loading: boolean) => void;
   setNodeDataError: (error: string | null) => void;
   clearNodeData: () => void;
+  resetStore: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -243,4 +244,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setNodeDataError: error => set({ nodeDataError: error, nodeData: null }),
   clearNodeData: () =>
     set({ nodeData: null, nodeDataError: null, nodeDataLoading: false }),
+  
+  // Reset entire store to initial state
+  resetStore: () =>
+    set({
+      messages: [],
+      currentWorkflow: { nodes: [], connections: [] },
+      workflowComplete: false,
+      isLoading: false,
+      error: null,
+      nodeData: null,
+      nodeDataLoading: false,
+      nodeDataError: null,
+    }),
 }));
