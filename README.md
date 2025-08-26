@@ -12,6 +12,46 @@ A conversational data integration platform where users describe data pipelines a
 
 This project demonstrates a modern frontend application with a Node.js backend that uses AI to help users create data flows through natural language conversations. Users can describe data pipelines like "Connect Shopify to Snowflake" and the AI will guide them through the setup process with clarifying questions and visual flow diagrams.
 
+## 🎯 Best Use Cases & Examples
+
+### 💡 Recommended Workflow Examples
+
+For the best experience, try these predefined examples that showcase the AI's capabilities:
+
+1. **E-commerce Data Pipeline**
+   - "Connect Shopify to Snowflake"
+   - "Set up a pipeline from WooCommerce to BigQuery"
+   - "Create a data flow from Magento to Redshift"
+
+2. **Marketing Analytics**
+   - "Connect HubSpot to Google Analytics"
+   - "Set up a pipeline from Mailchimp to Snowflake"
+   - "Create a data flow from Facebook Ads to BigQuery"
+
+3. **CRM Integration**
+   - "Connect Salesforce to Snowflake"
+   - "Set up a pipeline from Pipedrive to Redshift"
+   - "Create a data flow from Zoho CRM to BigQuery"
+
+4. **Financial Data**
+   - "Connect Stripe to Snowflake"
+   - "Set up a pipeline from PayPal to BigQuery"
+   - "Create a data flow from QuickBooks to Redshift"
+
+### 🚀 Why These Examples Work Best
+
+- **Clear Source & Destination**: The AI understands popular platforms and databases
+- **Common Use Cases**: These are real-world scenarios the AI has been trained on
+- **Structured Data**: These platforms have well-defined data schemas
+- **Interactive Flow**: You'll see the AI ask clarifying questions and build visual diagrams
+
+### 💬 Conversation Tips
+
+- **Be Specific**: "Connect Shopify to Snowflake" works better than "set up a data pipeline"
+- **Mention Platforms**: Include source and destination names for better results
+- **Answer Questions**: The AI will ask for configuration details - provide them for a complete workflow
+- **Follow the Flow**: Watch the visual diagram update as you provide information
+
 ## 🏗️ Architecture
 
 - **Frontend**: React 18 + TypeScript + Tailwind CSS + React Flow + Zustand
