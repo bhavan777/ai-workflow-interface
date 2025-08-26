@@ -48,12 +48,16 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               onChange={e => onInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={isLoading}
+              aria-label="Chat message input"
+              aria-describedby="chat-input-hint"
               className="w-full h-12 pr-12 rounded-lg border border-border focus:border-primary focus:shadow-[0_0_0_4px_hsla(24,95%,53%,0.4)] focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-300 group-hover:border-border/80 group-hover:shadow-sm"
             />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 type="submit"
                 disabled={isSubmitDisabled}
+                aria-label="Send message"
+                aria-describedby="send-button-description"
                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md"
               >
                 <motion.div
@@ -81,10 +85,16 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.6 }}
             transition={{ delay: 1 }}
+            id="chat-input-hint"
             className="text-xs text-muted-foreground mt-2 text-center"
           >
             Press Enter to send • Shift+Enter for new line
           </motion.div>
+
+          {/* Hidden description for send button */}
+          <div id="send-button-description" className="sr-only">
+            Send your message to the AI assistant
+          </div>
         </form>
       </motion.div>
     );

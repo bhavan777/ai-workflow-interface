@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 import { Brain, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -41,19 +40,41 @@ export default function Header() {
               </p>
             </div>
           </Link>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
+          <nav className="flex items-center space-x-6">
+            <Link
+              to="/"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              aria-label="Go to home page"
+            >
+              Home
+            </Link>
+            <Link
+              to="/workflow"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              aria-label="Go to workflow page"
+            >
+              Workflow
+            </Link>
+          </nav>
+
+          <div className="flex items-center space-x-4">
+            <button
               onClick={toggleDarkMode}
-              className="w-8 h-8"
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+              aria-describedby="theme-toggle-description"
             >
               {isDarkMode ? (
                 <Sun className="w-4 h-4" />
               ) : (
                 <Moon className="w-4 h-4" />
               )}
-            </Button>
+            </button>
+
+            {/* Hidden description for screen readers */}
+            <div id="theme-toggle-description" className="sr-only">
+              Toggle between light and dark theme
+            </div>
           </div>
         </div>
       </div>

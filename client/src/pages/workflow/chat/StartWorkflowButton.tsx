@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Edit, Play, Rocket, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Edit, Zap } from 'lucide-react';
 
 interface StartWorkflowButtonProps {
   onStartWorkflow: () => void;
@@ -12,83 +12,56 @@ export default function StartWorkflowButton({
   onEditWorkflow,
 }: StartWorkflowButtonProps) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex justify-center items-center space-x-3 p-4 bg-gradient-to-r from-green-50/50 to-blue-50/50 border-t border-border/50"
+      transition={{ duration: 0.3 }}
+      className="p-4 border-t border-border bg-background/50"
     >
-      {/* Secondary action - Edit Workflow */}
-      {onEditWorkflow && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+      <div className="space-y-3">
+        <Button
+          onClick={onStartWorkflow}
+          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all duration-200 hover:shadow-md"
+          aria-label="Start workflow execution"
+          aria-describedby="start-workflow-description"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            className="flex items-center justify-center space-x-2"
           >
-            <Button
-              onClick={onEditWorkflow}
-              variant="outline"
-              className="text-muted-foreground hover:text-foreground border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-background/80 transition-all duration-200"
-              size="lg"
-            >
-              <motion.div
-                whileHover={{ rotate: 15 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Settings className="w-4 h-4 mr-2" />
-              </motion.div>
-              <span>Edit Workflow</span>
-            </Button>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Primary CTA - Start Workflow */}
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Button
-            onClick={onStartWorkflow}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200"
-            size="lg"
-          >
-            <motion.div
-              animate={{ 
-                y: [0, -2, 0],
-                rotate: [0, 5, -5, 0]
-              }}
-              transition={{ 
-                duration: 2, 
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              <Rocket className="w-5 h-5" />
-            </motion.div>
+            <Zap className="w-4 h-4" />
             <span>Start Workflow</span>
+          </motion.div>
+        </Button>
+
+        {onEditWorkflow && (
+          <Button
+            onClick={onEditWorkflow}
+            variant="outline"
+            className="w-full h-10 border-border hover:bg-muted text-foreground font-medium rounded-lg transition-all duration-200"
+            aria-label="Edit workflow configuration"
+            aria-describedby="edit-workflow-description"
+          >
             <motion.div
-              animate={{ x: [0, 3, 0] }}
-              transition={{ 
-                duration: 1.5, 
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center justify-center space-x-2"
             >
-              <Play className="w-4 h-4" />
+              <Edit className="w-3 h-3" />
+              <span>Edit Workflow</span>
             </motion.div>
           </Button>
-        </motion.div>
-      </motion.div>
+        )}
+      </div>
+
+      {/* Hidden descriptions for screen readers */}
+      <div id="start-workflow-description" className="sr-only">
+        Execute the configured workflow to process your data
+      </div>
+      <div id="edit-workflow-description" className="sr-only">
+        Modify the current workflow configuration
+      </div>
 
       {/* Success indicator */}
       <motion.div
@@ -98,14 +71,14 @@ export default function StartWorkflowButton({
         className="absolute -top-2 right-4"
       >
         <motion.div
-          animate={{ 
+          animate={{
             scale: [1, 1.1, 1],
-            rotate: [0, 10, -10, 0]
+            rotate: [0, 10, -10, 0],
           }}
-          transition={{ 
-            duration: 2, 
+          transition={{
+            duration: 2,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: 'easeInOut',
           }}
           className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
         >

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Sparkles, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ArrowRight, MessageSquare, Sparkles } from 'lucide-react';
 
 interface WorkflowSetupProps {
   description: string;
@@ -18,7 +18,7 @@ export default function WorkflowSetup({
   const isButtonDisabled = isLoading || !description.trim();
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -58,11 +58,21 @@ export default function WorkflowSetup({
             <textarea
               value={description}
               onChange={e => onDescriptionChange(e.target.value)}
-              placeholder="e.g., Connect Shopify to Snowflake with data transformation"
-              className="w-full h-32 resize-none rounded-lg border border-border bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:shadow-[0_0_0_4px_hsla(24,95%,53%,0.4)] focus:visible:ring-0 focus:visible:ring-offset-0 transition-all duration-300 group-hover:border-border/80 group-hover:shadow-sm"
+              placeholder="Describe what you want to accomplish... For example: 'Connect my Shopify store to Snowflake for analytics'"
               disabled={isLoading}
+              aria-label="Workflow description"
+              aria-describedby="workflow-description-hint"
+              className="w-full h-32 p-4 border border-border rounded-lg resize-none bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            
+
+            <div
+              id="workflow-description-hint"
+              className="text-sm text-muted-foreground mt-2"
+            >
+              Be specific about your data sources, transformations, and
+              destination
+            </div>
+
             {/* Subtle glow effect when typing */}
             {description.trim() && (
               <motion.div
@@ -72,7 +82,7 @@ export default function WorkflowSetup({
                 className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 pointer-events-none"
               />
             )}
-            
+
             {/* Character count */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -90,14 +100,13 @@ export default function WorkflowSetup({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               onClick={onStartConversation}
-              disabled={isButtonDisabled}
-              className="w-full h-12 text-base font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
+              disabled={!description.trim() || isLoading}
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Start conversation with AI assistant"
+              aria-describedby="start-conversation-description"
             >
               <motion.div
                 whileHover={{ x: 2 }}
@@ -109,6 +118,11 @@ export default function WorkflowSetup({
                 <ArrowRight className="w-4 h-4" />
               </motion.div>
             </Button>
+
+            {/* Hidden description for screen readers */}
+            <div id="start-conversation-description" className="sr-only">
+              Begin a conversation with the AI to configure your workflow
+            </div>
           </motion.div>
         </motion.div>
       </div>
