@@ -12,45 +12,83 @@ A conversational data integration platform where users describe data pipelines a
 
 This project demonstrates a modern frontend application with a Node.js backend that uses AI to help users create data flows through natural language conversations. Users can describe data pipelines like "Connect Shopify to Snowflake" and the AI will guide them through the setup process with clarifying questions and visual flow diagrams.
 
-## 🎯 Best Use Cases & Examples
+## 🎯 Demo Guide - What to Expect
 
-### 💡 Recommended Workflow Examples
+### 🚀 Quick Start Demo
 
-For the best experience, try these predefined examples that showcase the AI's capabilities:
+**Step 1: Visit the App**
+- Go to [https://cute-meringue-5c8765.netlify.app](https://cute-meringue-5c8765.netlify.app)
+- You'll see a clean landing page with an input field
 
-1. **E-commerce Data Pipeline**
-   - "Connect Shopify to Snowflake"
-   - "Set up a pipeline from WooCommerce to BigQuery"
-   - "Create a data flow from Magento to Redshift"
+**Step 2: Start Your First Workflow**
+- Type: `"Connect Shopify to Snowflake"`
+- Click "Start Workflow" or press Enter
+- Watch the AI begin processing your request
 
-2. **Marketing Analytics**
-   - "Connect HubSpot to Google Analytics"
-   - "Set up a pipeline from Mailchimp to Snowflake"
-   - "Create a data flow from Facebook Ads to BigQuery"
+**Step 3: Experience the AI Conversation**
+- The AI will ask clarifying questions like:
+  - "What type of Shopify data do you want to sync?"
+  - "Do you have your Snowflake credentials ready?"
+  - "What's your preferred sync frequency?"
+- Answer these questions naturally
 
-3. **CRM Integration**
-   - "Connect Salesforce to Snowflake"
-   - "Set up a pipeline from Pipedrive to Redshift"
-   - "Create a data flow from Zoho CRM to BigQuery"
+**Step 4: Watch the Visual Flow Build**
+- As you provide information, you'll see:
+  - A visual workflow diagram appear on the right
+  - Nodes representing your data sources and destinations
+  - Connections showing data flow between components
+  - Status indicators (pending → partial → complete)
 
-4. **Financial Data**
-   - "Connect Stripe to Snowflake"
-   - "Set up a pipeline from PayPal to BigQuery"
-   - "Create a data flow from QuickBooks to Redshift"
+**Step 5: Complete the Configuration**
+- The AI will guide you through each step
+- You'll see real-time updates to the workflow
+- The diagram will show completion status for each component
 
-### 🚀 Why These Examples Work Best
+### 💡 Best Demo Examples
 
-- **Clear Source & Destination**: The AI understands popular platforms and databases
-- **Common Use Cases**: These are real-world scenarios the AI has been trained on
-- **Structured Data**: These platforms have well-defined data schemas
-- **Interactive Flow**: You'll see the AI ask clarifying questions and build visual diagrams
+Try these specific examples for the most impressive demo:
 
-### 💬 Conversation Tips
+1. **"Connect Shopify to Snowflake"** 
+   - Shows e-commerce data pipeline
+   - AI asks about product data, orders, customers
+   - Visual flow builds as you answer
+
+2. **"Set up a pipeline from HubSpot to Google Analytics"**
+   - Demonstrates marketing analytics integration
+   - AI guides through lead data and conversion tracking
+   - Shows complex multi-step workflows
+
+3. **"Create a data flow from Salesforce to BigQuery"**
+   - CRM to data warehouse integration
+   - AI handles authentication and data mapping
+   - Professional enterprise workflow
+
+### 🎨 What You'll See
+
+**Real-time AI Processing:**
+- Live typing indicators
+- AI "thinking" messages
+- Progressive workflow building
+
+**Interactive Visual Elements:**
+- Drag-and-drop ready workflow canvas
+- Color-coded nodes (blue=source, purple=transform, green=destination)
+- Status indicators with animations
+- Clickable nodes for detailed configuration
+
+**Professional UI:**
+- HubSpot-inspired orange theme
+- Dark/light mode toggle
+- Responsive design (works on mobile)
+- Smooth animations and transitions
+
+### 💬 Pro Tips for Demo
 
 - **Be Specific**: "Connect Shopify to Snowflake" works better than "set up a data pipeline"
-- **Mention Platforms**: Include source and destination names for better results
-- **Answer Questions**: The AI will ask for configuration details - provide them for a complete workflow
-- **Follow the Flow**: Watch the visual diagram update as you provide information
+- **Answer Questions**: The AI will ask for details - provide them for a complete workflow
+- **Watch the Flow**: The visual diagram updates in real-time as you interact
+- **Try Different Scenarios**: Each example shows different AI capabilities
+- **Explore the Interface**: Click on nodes to see detailed configuration panels
 
 ## 🏗️ Architecture
 
