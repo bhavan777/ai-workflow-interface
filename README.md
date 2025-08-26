@@ -17,15 +17,18 @@ This project demonstrates a modern frontend application with a Node.js backend t
 ### 🚀 Quick Start Demo
 
 **Step 1: Visit the App**
+
 - Go to [https://cute-meringue-5c8765.netlify.app](https://cute-meringue-5c8765.netlify.app)
 - You'll see a clean landing page with an input field
 
 **Step 2: Start Your First Workflow**
+
 - Type: `"Connect Shopify to Snowflake"`
 - Click "Start Workflow" or press Enter
 - Watch the AI begin processing your request
 
 **Step 3: Experience the AI Conversation**
+
 - The AI will ask clarifying questions like:
   - "What type of Shopify data do you want to sync?"
   - "Do you have your Snowflake credentials ready?"
@@ -33,6 +36,7 @@ This project demonstrates a modern frontend application with a Node.js backend t
 - Answer these questions naturally
 
 **Step 4: Watch the Visual Flow Build**
+
 - As you provide information, you'll see:
   - A visual workflow diagram appear on the right
   - Nodes representing your data sources and destinations
@@ -40,6 +44,7 @@ This project demonstrates a modern frontend application with a Node.js backend t
   - Status indicators (pending → partial → complete)
 
 **Step 5: Complete the Configuration**
+
 - The AI will guide you through each step
 - You'll see real-time updates to the workflow
 - The diagram will show completion status for each component
@@ -48,7 +53,7 @@ This project demonstrates a modern frontend application with a Node.js backend t
 
 Try these specific examples for the most impressive demo:
 
-1. **"Connect Shopify to Snowflake"** 
+1. **"Connect Shopify to Snowflake"**
    - Shows e-commerce data pipeline
    - AI asks about product data, orders, customers
    - Visual flow builds as you answer
@@ -66,17 +71,20 @@ Try these specific examples for the most impressive demo:
 ### 🎨 What You'll See
 
 **Real-time AI Processing:**
+
 - Live typing indicators
 - AI "thinking" messages
 - Progressive workflow building
 
 **Interactive Visual Elements:**
+
 - Drag-and-drop ready workflow canvas
 - Color-coded nodes (blue=source, purple=transform, green=destination)
 - Status indicators with animations
 - Clickable nodes for detailed configuration
 
 **Professional UI:**
+
 - HubSpot-inspired orange theme
 - Dark/light mode toggle
 - Responsive design (works on mobile)

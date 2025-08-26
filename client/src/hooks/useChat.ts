@@ -16,7 +16,6 @@ export const useChat = () => {
     setWorkflowComplete,
     setLoading,
     setError,
-    clearMessages,
     addUserMessage,
     addDummyAssistantMessage,
     updateLastAssistantMessage,
