@@ -4,7 +4,7 @@ A conversational data integration platform where users describe data pipelines a
 
 ## 🚀 Live Demo
 
-- **Frontend**: [https://ai-workflow-interface.netlify.app](https://ai-workflow-interface.netlify.app)
+- **Frontend**: [https://cute-meringue-5c8765.netlify.app](https://cute-meringue-5c8765.netlify.app)
 - **Backend API**: [https://ai-workflow-interface-production.up.railway.app](https://ai-workflow-interface-production.up.railway.app)
 - **WebSocket**: `wss://ai-workflow-interface-production.up.railway.app`
 
