@@ -2,16 +2,24 @@
 
 A conversational data integration platform where users describe data pipelines and see them visualized as interactive flow diagrams. Built for the Nexla Take-Home Assignment.
 
+## 🚀 Live Demo
+
+- **Frontend**: [https://ai-workflow-interface.netlify.app](https://ai-workflow-interface.netlify.app)
+- **Backend API**: [https://ai-workflow-interface-production.up.railway.app](https://ai-workflow-interface-production.up.railway.app)
+- **WebSocket**: `wss://ai-workflow-interface-production.up.railway.app`
+
 ## 🎯 Project Overview
 
 This project demonstrates a modern frontend application with a Node.js backend that uses AI to help users create data flows through natural language conversations. Users can describe data pipelines like "Connect Shopify to Snowflake" and the AI will guide them through the setup process with clarifying questions and visual flow diagrams.
 
 ## 🏗️ Architecture
 
-- **Frontend**: React + TypeScript + Tailwind CSS (to be implemented)
+- **Frontend**: React 18 + TypeScript + Tailwind CSS + React Flow + Zustand
 - **Backend**: Node.js + TypeScript + Express + WebSocket
-- **AI**: OpenAI GPT-3.5-turbo for intelligent conversations
+- **AI**: Groq Cloud (Llama3-70B, Mixtral-8x7B, Llama3-8B) with automatic fallback
 - **Real-time**: WebSocket for live chat interface
+- **State Management**: Zustand for client-side state
+- **UI Components**: shadcn/ui with HubSpot-inspired orange theme
 
 ## 🚀 Quick Start
 
@@ -33,7 +41,7 @@ This project demonstrates a modern frontend application with a Node.js backend t
 
    ```bash
    cp env.example .env
-   # Edit .env and add your OpenAI API key
+   # Edit .env and add your Groq API key (get from https://console.groq.com/)
    ```
 
 4. **Start development server**:
@@ -43,15 +51,37 @@ This project demonstrates a modern frontend application with a Node.js backend t
 
 The server will run on `http://localhost:3001`
 
-### Frontend Setup (Coming Soon)
+### Frontend Setup
 
-The frontend will be implemented in the `client/` directory with:
+1. **Navigate to client directory**:
+
+   ```bash
+   cd client
+   ```
+
+2. **Install dependencies**:
+
+   ```bash
+   npm install
+   ```
+
+3. **Start development server**:
+   ```bash
+   npm run dev
+   ```
+
+The frontend will run on `http://localhost:3000` and automatically proxy API requests to the backend.
+
+**Features implemented:**
 
 - React 18+ with TypeScript
-- Tailwind CSS for styling
+- Tailwind CSS with HubSpot-inspired orange theme
 - React Router for navigation
 - WebSocket integration for real-time chat
-- Interactive flow diagram canvas
+- Interactive flow diagram canvas with React Flow
+- Dark/light theme toggle
+- Zustand for state management
+- shadcn/ui components
 
 ## 📡 API Endpoints
 
@@ -64,33 +94,38 @@ The frontend will be implemented in the `client/` directory with:
 
 ### WebSocket Events
 
-- `conversation_start` - Start new conversation
-- `conversation_continue` - Continue existing conversation
-- `status` - Processing status updates
-- `error` - Error responses
+- `MESSAGE` - User messages and AI responses
+- `THOUGHT` - AI processing thoughts (server-side only)
+- `STATUS` - Processing status updates
+- `ERROR` - Error responses
+- `GET_NODE_DATA` - Request node configuration data
+- `NODE_DATA` - Node configuration data response
 
 ## 🎨 Features
 
 ### Core Requirements ✅
 
-- [x] Backend with AI conversation capabilities
+- [x] Backend with AI conversation capabilities (Groq Cloud)
 - [x] WebSocket support for real-time communication
 - [x] Structured data flow generation
 - [x] REST API endpoints
-- [ ] Landing page with input field
-- [ ] Chat interface with message bubbles
-- [ ] Visual canvas with flow diagrams
-- [ ] Node status indicators
-- [ ] Properties panel
+- [x] Landing page with input field
+- [x] Chat interface with message bubbles
+- [x] Visual canvas with flow diagrams (React Flow)
+- [x] Node status indicators
+- [x] Properties panel for node configuration
 
-### Bonus Features 🎯
+### Bonus Features ✅
 
-- [ ] Dark/light theme toggle
-- [ ] Mobile-responsive design
-- [ ] Loading states
-- [ ] Auto-scroll to new messages
-- [ ] Smooth animations
-- [ ] Accessibility features
+- [x] Dark/light theme toggle with persistence
+- [x] Mobile-responsive design
+- [x] Loading states and animations
+- [x] Auto-scroll to new messages
+- [x] Smooth animations with Framer Motion
+- [x] Accessibility features
+- [x] HubSpot-inspired orange theme
+- [x] Real-time AI thoughts display
+- [x] Interactive workflow canvas
 
 ## 🔧 Development
 
@@ -153,18 +188,20 @@ The server can be deployed to:
 ```env
 PORT=3001
 NODE_ENV=production
-OPENAI_API_KEY=your_openai_api_key
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ## 📝 Assignment Requirements
 
 This project addresses the Nexla Take-Home Assignment requirements:
 
-- ✅ **Technical Stack**: React + TypeScript + Tailwind CSS (frontend pending)
-- ✅ **AI Integration**: OpenAI API for intelligent conversations
-- ✅ **Real-time Communication**: WebSocket support
-- ✅ **Data Flow Visualization**: Structured node/connection system
-- ✅ **Modern Architecture**: Clean TypeScript backend
+- ✅ **Technical Stack**: React 18 + TypeScript + Tailwind CSS + React Flow
+- ✅ **AI Integration**: Groq Cloud API for intelligent conversations
+- ✅ **Real-time Communication**: WebSocket support with live updates
+- ✅ **Data Flow Visualization**: Interactive React Flow canvas with node status
+- ✅ **Modern Architecture**: Clean TypeScript backend with Express + WebSocket
+- ✅ **State Management**: Zustand for efficient client-side state
+- ✅ **UI/UX**: HubSpot-inspired design with dark/light theme support
 
 ## 🤝 Contributing
 
