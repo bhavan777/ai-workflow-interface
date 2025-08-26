@@ -35,6 +35,14 @@ function App() {
             </Layout>
           }
         />
+        <Route
+          path="/workflow/:templateId"
+          element={
+            <Layout>
+              <Workflow />
+            </Layout>
+          }
+        />
       </Routes>
     </Router>
   );

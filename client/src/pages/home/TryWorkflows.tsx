@@ -30,30 +30,35 @@ export default function TryWorkflows() {
     }
   };
 
-  const handleExampleClick = (example: string) => {
-    startWorkflowWithMessage(example);
+  const handleExampleClick = (example: any) => {
+    // Navigate to template URL for examples
+    navigate(`/workflow/${example.id}`);
   };
 
   const examples = [
     {
+      id: 'shopify-snowflake',
       icon: <Database className="w-4 h-4" />,
       text: 'Shopify to Snowflake',
       description: 'Connect store data to data warehouse',
     },
     {
+      id: 'salesforce-mailchimp',
       icon: <Zap className="w-4 h-4" />,
       text: 'Salesforce to Mailchimp',
       description: 'Sync contacts for email marketing',
     },
     {
+      id: 'hubspot-analytics',
       icon: <Cloud className="w-4 h-4" />,
-      text: 'API to Database',
-      description: 'Extract and store API data',
+      text: 'HubSpot to Analytics',
+      description: 'Connect marketing data to analytics',
     },
     {
+      id: 'stripe-bigquery',
       icon: <Brain className="w-4 h-4" />,
-      text: 'Data Transformation',
-      description: 'Clean and transform data',
+      text: 'Stripe to BigQuery',
+      description: 'Sync payment data to data warehouse',
     },
   ];
 
@@ -97,7 +102,7 @@ export default function TryWorkflows() {
           {examples.map((example, index) => (
             <button
               key={index}
-              onClick={() => handleExampleClick(example.text)}
+              onClick={() => handleExampleClick(example)}
               className="flex flex-col items-center p-4 rounded-xl border border-border hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-all duration-200 group"
             >
               <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mb-2 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/40 transition-colors">

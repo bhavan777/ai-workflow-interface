@@ -2,7 +2,7 @@ import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import Canvas from './Canvas';
 import Chat from './chat';
 
@@ -10,6 +10,7 @@ export default function Workflow() {
   const hasInitialized = useRef(false);
   const hasStartedConversation = useRef(false);
   const location = useLocation();
+  const { templateId } = useParams();
 
   const {
     currentWorkflow,
@@ -42,19 +43,33 @@ export default function Workflow() {
     initializeWebSocket();
   }, [connect, clearConversation]);
 
-  // Handle initial message from navigation
-  useEffect(() => {
-    const initialMessage = location.state?.initialMessage;
+  // Convert template ID to natural language message
+  const convertTemplateIdToMessage = (templateId: string) => {
+    // 'shopify-snowflake' → 'Connect Shopify to Snowflake'
+    const [origin, destination] = templateId.split('-');
+    return `Connect ${origin} to ${destination}`;
+  };
 
-    if (
-      initialMessage &&
-      hasInitialized.current &&
-      !hasStartedConversation.current
-    ) {
+  // Handle initial message from navigation (URL template or route state)
+  useEffect(() => {
+    if (!hasInitialized.current || hasStartedConversation.current) return;
+
+    let initialMessage: string | undefined;
+
+    // Check for URL template first
+    if (templateId) {
+      initialMessage = convertTemplateIdToMessage(templateId);
+    }
+    // Fall back to route state for custom messages
+    else if (location.state?.initialMessage) {
+      initialMessage = location.state.initialMessage;
+    }
+
+    if (initialMessage) {
       hasStartedConversation.current = true;
       handleStartConversation(initialMessage);
     }
-  }, [location.state, hasInitialized.current]);
+  }, [templateId, location.state, hasInitialized.current]);
 
   const handleStartConversation = async (description: string) => {
     setLoadingState(true);
