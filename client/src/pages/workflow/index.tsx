@@ -12,7 +12,6 @@ export default function Workflow() {
   const location = useLocation();
 
   const {
-    messages,
     currentWorkflow,
     addUserMessage,
     setLoadingState,
@@ -96,12 +95,6 @@ export default function Workflow() {
     alert(
       'Workflow started! This would trigger the actual data pipeline execution.'
     );
-  };
-
-  const handleEditWorkflow = () => {
-    console.log('✏️ Edit workflow requested');
-    // The edit message will be automatically sent to the server
-    // which will continue the conversation with relevant questions
   };
 
   const handleNodeDataRequest = (nodeId: string) => {
