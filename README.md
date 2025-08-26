@@ -23,7 +23,8 @@ This project demonstrates a modern frontend application with a Node.js backend t
 
 **Step 2: Start Your First Workflow**
 
-- Type: `"Connect Shopify to Snowflake"`
+- **Option A - Try Examples**: Click on any example card (Shopify to Snowflake, Salesforce to Mailchimp, etc.)
+- **Option B - Custom Workflow**: Type your own description like `"Connect my database to Google Analytics"`
 - Click "Start Workflow" or press Enter
 - Watch the AI begin processing your request
 
@@ -53,20 +54,25 @@ This project demonstrates a modern frontend application with a Node.js backend t
 
 Try these specific examples for the most impressive demo:
 
-1. **"Connect Shopify to Snowflake"**
+1. **Shopify to Snowflake** (Click the example card)
    - Shows e-commerce data pipeline
    - AI asks about product data, orders, customers
    - Visual flow builds as you answer
 
-2. **"Set up a pipeline from HubSpot to Google Analytics"**
-   - Demonstrates marketing analytics integration
-   - AI guides through lead data and conversion tracking
-   - Shows complex multi-step workflows
+2. **Salesforce to Mailchimp** (Click the example card)
+   - Demonstrates CRM to email marketing integration
+   - AI guides through contact data and sync settings
+   - Shows lead nurturing workflows
 
-3. **"Create a data flow from Salesforce to BigQuery"**
-   - CRM to data warehouse integration
-   - AI handles authentication and data mapping
-   - Professional enterprise workflow
+3. **HubSpot to Analytics** (Click the example card)
+   - Marketing analytics integration
+   - AI handles lead tracking and conversion data
+   - Professional marketing workflow
+
+4. **Stripe to BigQuery** (Click the example card)
+   - Payment data to data warehouse
+   - AI guides through transaction data and reporting
+   - Financial analytics workflow
 
 ### 🎨 What You'll See
 
@@ -92,11 +98,29 @@ Try these specific examples for the most impressive demo:
 
 ### 💬 Pro Tips for Demo
 
+- **Try the Examples**: Click on example cards for instant, predictable workflows
 - **Be Specific**: "Connect Shopify to Snowflake" works better than "set up a data pipeline"
 - **Answer Questions**: The AI will ask for details - provide them for a complete workflow
 - **Watch the Flow**: The visual diagram updates in real-time as you interact
 - **Try Different Scenarios**: Each example shows different AI capabilities
 - **Explore the Interface**: Click on nodes to see detailed configuration panels
+
+### 🔧 Implementation Approach
+
+**Current Demo Implementation:**
+
+- **Client-side Template Conversion**: URL parameters like `/workflow/shopify-snowflake` are converted to natural language messages
+- **No Server Changes**: Uses existing AI conversation flow without backend modifications
+- **Quick Prototype**: Implemented for demo purposes to save development time
+
+**Ideal Production Approach:**
+
+- **Server-side Templates**: Pre-built workflow templates stored on the server
+- **Template IDs**: `/workflow/shopify-snowflake` would load a predefined template
+- **Reduced AI Costs**: Examples wouldn't consume AI tokens
+- **Consistent Experience**: Same workflow structure every time
+- **Better Performance**: Instant template loading vs AI processing
+- **Professional UX**: Like real SaaS products with predefined integrations
 
 ## 🏗️ Architecture
 
