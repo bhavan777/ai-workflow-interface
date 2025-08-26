@@ -10,22 +10,26 @@ A Node.js server that provides AI-powered data pipeline configuration through co
 ## 🎯 What This Server Does
 
 ### 🤖 AI-Powered Conversations
+
 - **Groq Cloud Integration**: Uses Llama3-70B, Mixtral-8x7B, and Llama3-8B models
+- **Dual Model Processing**: Separate models for JSON parsing and conversation handling
 - **Automatic Model Fallback**: If one model fails, automatically tries the next
 - **Intelligent Responses**: Generates contextual, helpful responses to user queries
 - **Workflow Building**: Creates visual data flow diagrams from natural language
 
 ### 🔄 Real-time Communication
+
 - **WebSocket Support**: Real-time bidirectional communication with clients
 - **Live Status Updates**: Sends processing status and progress indicators
 - **Instant Responses**: Sub-second response times for most queries
 - **Connection Management**: Handles multiple concurrent connections
 
 ### 📊 Workflow Management
-- **Visual Flow Generation**: Creates interactive workflow diagrams
-- **Node Configuration**: Manages source, transform, and destination nodes
-- **Status Tracking**: Tracks completion status for each workflow component
-- **Conversation History**: Maintains context across multiple messages
+
+- **Visual Flow Generation**: Creates interactive workflow diagrams with React Flow
+- **Node Configuration**: Manages source, transform, and destination nodes with data requirements
+- **Status Tracking**: Tracks completion status (pending → partial → complete → error)
+- **Conversation History**: Maintains context in-memory for each WebSocket connection
 
 ## Core Behavior
 
@@ -125,8 +129,9 @@ Each node has a **fixed structure**:
 ### AI Service (`aiService.ts`)
 
 - **Groq Cloud integration** with automatic model fallback
+- **Dual model processing**: Separate models for JSON parsing and conversation handling
 - **JSON response parsing** with error recovery and retry logic
-- **Conversation history management** with file-based persistence
+- **Conversation history management** with in-memory storage
 - **Workflow state tracking** with node configuration updates
 
 ### WebSocket Handler (`websocket.ts`)
@@ -150,13 +155,15 @@ Each node has a **fixed structure**:
 **Connection**: `wss://ai-workflow-interface-production.up.railway.app`
 
 **Message Types**:
-- **MESSAGE**: User messages and AI responses with workflow data
+
+- **MESSAGE**: User messages and AI responses with workflow data (nodes, connections, workflow_complete)
 - **STATUS**: Processing status updates (`processing`, `complete`, `error`)
 - **ERROR**: Error responses with detailed messages
-- **GET_NODE_DATA**: Request specific node configuration
-- **NODE_DATA**: Node configuration data response
+- **GET_NODE_DATA**: Request specific node configuration details
+- **NODE_DATA**: Node configuration data response with filled_values and node_status
 
 **Example Message Flow**:
+
 ```javascript
 // Client sends
 {
@@ -167,15 +174,27 @@ Each node has a **fixed structure**:
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 
-// Server responds
+// Server responds with workflow data
 {
   "id": "msg_124",
   "role": "assistant",
   "type": "MESSAGE",
   "content": "I'll help you connect Shopify to Snowflake...",
   "timestamp": "2024-01-01T00:00:01.000Z",
-  "nodes": [...],
-  "connections": [...],
+  "nodes": [
+    {
+      "id": "source-node",
+      "type": "source",
+      "name": "Shopify",
+      "status": "pending",
+      "data_requirements": {
+        "required_fields": ["account_name", "access_key", "secret_key"],
+        "provided_fields": [],
+        "missing_fields": ["account_name", "access_key", "secret_key"]
+      }
+    }
+  ],
+  "connections": [],
   "workflow_complete": false
 }
 ```

@@ -24,10 +24,10 @@ A modern React + TypeScript + Tailwind CSS frontend for the AI Workflow Interfac
 
 ### 🔄 Interactive Elements
 
-- **Clickable Nodes**: Click any node to see detailed configuration
-- **Drag-and-Drop Ready**: Canvas supports drag-and-drop interactions
-- **Visual Feedback**: Hover effects and loading states
-- **Progress Tracking**: See your workflow completion status
+- **Clickable Nodes**: Click any node to see detailed configuration panel
+- **Visual Feedback**: Hover effects and loading states with animations
+- **Progress Tracking**: See workflow completion status with color-coded indicators
+- **Real-time Updates**: Workflow diagram updates as you provide information
 
 ## 🛠️ Tech Stack
 
@@ -156,17 +156,18 @@ The client communicates with the backend through WebSocket for real-time interac
 
 ### Message Types
 
-- **MESSAGE**: User messages and AI responses
-- **STATUS**: Processing status updates
-- **ERROR**: Error responses
-- **GET_NODE_DATA**: Request node configuration data
-- **NODE_DATA**: Node configuration data response
+- **MESSAGE**: User messages and AI responses with workflow data
+- **STATUS**: Processing status updates (`processing`, `complete`, `error`)
+- **ERROR**: Error responses with detailed messages
+- **GET_NODE_DATA**: Request specific node configuration details
+- **NODE_DATA**: Node configuration data response with field values
 
 ### State Management
 
-- **Zustand Store**: Efficient client-side state management
-- **Real-time Updates**: UI updates instantly as data changes
-- **Persistent State**: Maintains conversation state across sessions
+- **Zustand Store**: Efficient client-side state management with useChatStore
+- **Real-time Updates**: UI updates instantly as WebSocket messages arrive
+- **Conversation History**: Maintains message history and workflow state
+- **Node Data Management**: Handles node configuration and field values
 
 ## 🚀 Deployment
 
