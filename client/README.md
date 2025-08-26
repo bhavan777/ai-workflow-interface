@@ -2,16 +2,32 @@
 
 A modern React + TypeScript + Tailwind CSS frontend for the AI Workflow Interface, featuring a HubSpot-inspired orange theme with dark/light mode support.
 
-## 🚀 Features
+## 🚀 Live Demo
 
-- **🎨 HubSpot-Inspired Design**: Beautiful orange theme with modern UI
-- **🌙 Dark/Light Mode**: Toggle between themes with persistent storage
-- **⚡ Real-time Updates**: Live workflow status and AI thoughts
-- **🔄 Interactive Workflow**: Visual representation of data flow nodes
-- **📱 Responsive Design**: Works on desktop, tablet, and mobile
-- **🎯 TypeScript**: Full type safety and better development experience
-- **🔧 Development Proxy**: Automatic API proxying to backend
-- **🎨 shadcn/ui**: Modern component library with consistent design
+**Frontend**: [https://cute-meringue-5c8765.netlify.app](https://cute-meringue-5c8765.netlify.app)
+
+## 🎯 What You'll Experience
+
+### 🎨 Visual Interface
+
+- **HubSpot-Inspired Orange Theme**: Professional, modern design with orange accents
+- **Dark/Light Mode Toggle**: Switch themes with persistent storage
+- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **Smooth Animations**: Framer Motion powered transitions and micro-interactions
+
+### ⚡ Real-time Features
+
+- **Live AI Conversations**: Watch the AI respond in real-time
+- **Interactive Workflow Canvas**: Visual data flow diagrams with React Flow
+- **Status Indicators**: Color-coded node status (pending → partial → complete)
+- **Real-time Updates**: Workflow builds as you provide information
+
+### 🔄 Interactive Elements
+
+- **Clickable Nodes**: Click any node to see detailed configuration
+- **Drag-and-Drop Ready**: Canvas supports drag-and-drop interactions
+- **Visual Feedback**: Hover effects and loading states
+- **Progress Tracking**: See your workflow completion status
 
 ## 🛠️ Tech Stack
 
@@ -127,28 +143,30 @@ Using Lucide React icons:
 - **Settings**: Configuration
 - **Sun/Moon**: Theme toggle
 
-## 🔌 API Integration
+## 🔌 Real-time Communication
 
-The client communicates with the backend through REST API endpoints:
+The client communicates with the backend through WebSocket for real-time interactions:
 
-### Start Workflow
+### WebSocket Connection
 
-```typescript
-POST /api/ai/start
-{
-  "description": "Connect Shopify to Snowflake"
-}
-```
+- **Automatic Connection**: Connects to backend WebSocket on app load
+- **Real-time Messages**: Instant message delivery and responses
+- **Connection Management**: Automatic reconnection on disconnection
+- **Error Handling**: Graceful error handling with user feedback
 
-### Continue Workflow
+### Message Types
 
-```typescript
-POST /api/ai/continue
-{
-  "conversationId": "uuid",
-  "answer": "User's answer to question"
-}
-```
+- **MESSAGE**: User messages and AI responses
+- **STATUS**: Processing status updates
+- **ERROR**: Error responses
+- **GET_NODE_DATA**: Request node configuration data
+- **NODE_DATA**: Node configuration data response
+
+### State Management
+
+- **Zustand Store**: Efficient client-side state management
+- **Real-time Updates**: UI updates instantly as data changes
+- **Persistent State**: Maintains conversation state across sessions
 
 ## 🚀 Deployment
 

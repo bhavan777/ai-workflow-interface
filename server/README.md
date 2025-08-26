@@ -2,9 +2,30 @@
 
 A Node.js server that provides AI-powered data pipeline configuration through conversational interfaces.
 
-## Overview
+## 🚀 Live Demo
 
-The server acts as an intelligent assistant that helps users build data pipelines by asking structured questions and maintaining workflow state. It uses Groq Cloud AI to process conversations and generate workflow configurations.
+**Backend API**: [https://ai-workflow-interface-production.up.railway.app](https://ai-workflow-interface-production.up.railway.app)  
+**WebSocket**: `wss://ai-workflow-interface-production.up.railway.app`
+
+## 🎯 What This Server Does
+
+### 🤖 AI-Powered Conversations
+- **Groq Cloud Integration**: Uses Llama3-70B, Mixtral-8x7B, and Llama3-8B models
+- **Automatic Model Fallback**: If one model fails, automatically tries the next
+- **Intelligent Responses**: Generates contextual, helpful responses to user queries
+- **Workflow Building**: Creates visual data flow diagrams from natural language
+
+### 🔄 Real-time Communication
+- **WebSocket Support**: Real-time bidirectional communication with clients
+- **Live Status Updates**: Sends processing status and progress indicators
+- **Instant Responses**: Sub-second response times for most queries
+- **Connection Management**: Handles multiple concurrent connections
+
+### 📊 Workflow Management
+- **Visual Flow Generation**: Creates interactive workflow diagrams
+- **Node Configuration**: Manages source, transform, and destination nodes
+- **Status Tracking**: Tracks completion status for each workflow component
+- **Conversation History**: Maintains context across multiple messages
 
 ## Core Behavior
 
@@ -122,18 +143,47 @@ Each node has a **fixed structure**:
 - **Security middleware** for request validation
 - **Graceful shutdown** handling
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### WebSocket (`/ws`)
+### WebSocket Communication
 
-- **Real-time bidirectional communication**
-- **Message format**: `{ type: 'message', content: string }`
-- **Response format**: `{ type: 'message', content: string, nodes?: [], connections?: [] }`
+**Connection**: `wss://ai-workflow-interface-production.up.railway.app`
 
-### Health Check (`/api/hello`)
+**Message Types**:
+- **MESSAGE**: User messages and AI responses with workflow data
+- **STATUS**: Processing status updates (`processing`, `complete`, `error`)
+- **ERROR**: Error responses with detailed messages
+- **GET_NODE_DATA**: Request specific node configuration
+- **NODE_DATA**: Node configuration data response
 
-- **Simple health endpoint** for monitoring
-- **Returns**: `{ message: "Hello from AI Workflow Server!" }`
+**Example Message Flow**:
+```javascript
+// Client sends
+{
+  "id": "msg_123",
+  "role": "user",
+  "type": "MESSAGE",
+  "content": "Connect Shopify to Snowflake",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+
+// Server responds
+{
+  "id": "msg_124",
+  "role": "assistant",
+  "type": "MESSAGE",
+  "content": "I'll help you connect Shopify to Snowflake...",
+  "timestamp": "2024-01-01T00:00:01.000Z",
+  "nodes": [...],
+  "connections": [...],
+  "workflow_complete": false
+}
+```
+
+### REST Endpoints
+
+- **Health Check** (`GET /health`): Server status and uptime
+- **AI Routes** (`/api/ai/*`): AI conversation endpoints
 
 ## Environment Variables
 
