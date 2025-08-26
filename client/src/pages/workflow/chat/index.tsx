@@ -76,42 +76,49 @@ export default function Chat({
   // If no conversation has started, show the workflow setup
   if (!hasStarted) {
     return (
-      <div className="w-1/3 border-r border-border bg-background/50">
-        <WorkflowSetup
-          description={description}
-          isLoading={isLoading}
-          onDescriptionChange={setDescription}
-          onStartConversation={handleStartConversation}
-        />
+      <div className="w-full h-full border-r border-border bg-background/50 flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          <WorkflowSetup
+            description={description}
+            isLoading={isLoading}
+            onDescriptionChange={setDescription}
+            onStartConversation={handleStartConversation}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-1/3 border-r border-border bg-background/50 flex flex-col h-full">
+    <div className="w-full h-full border-r border-border bg-background/50 flex flex-col min-h-0">
       {/* Messages - takes up most of the space */}
-      <Messages
-        messages={messages}
-        isWorkflowComplete={workflowComplete && !isEditMode}
-        onRetry={handleRetry}
-      />
-
-      {/* Start Workflow Button - shows when configuration is complete */}
-      {workflowComplete && !isEditMode && (
-        <StartWorkflowButton
-          onStartWorkflow={handleStartWorkflow}
-          onEditWorkflow={handleEditWorkflow}
+      <div className="flex-1 overflow-hidden min-h-0">
+        <Messages
+          messages={messages}
+          isWorkflowComplete={workflowComplete && !isEditMode}
+          onRetry={handleRetry}
         />
-      )}
+      </div>
 
-      {/* Chat Input - fixed at bottom */}
-      <ChatInput
-        ref={inputRef}
-        inputValue={inputValue}
-        isLoading={isLoading}
-        onInputChange={setInputValue}
-        onSubmit={handleSubmit}
-      />
+      {/* Bottom section - fixed at bottom */}
+      <div className="flex-shrink-0">
+        {/* Start Workflow Button - shows when configuration is complete */}
+        {workflowComplete && !isEditMode && (
+          <StartWorkflowButton
+            onStartWorkflow={handleStartWorkflow}
+            onEditWorkflow={handleEditWorkflow}
+          />
+        )}
+
+        {/* Chat Input - always at bottom */}
+        <ChatInput
+          ref={inputRef}
+          inputValue={inputValue}
+          isLoading={isLoading}
+          onInputChange={setInputValue}
+          onSubmit={handleSubmit}
+        />
+      </div>
     </div>
   );
 }

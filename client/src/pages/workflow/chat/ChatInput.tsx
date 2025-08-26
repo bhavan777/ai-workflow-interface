@@ -34,7 +34,7 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
-        className="p-4 border-t border-border bg-background/50 backdrop-blur-sm"
+        className="p-4 border-t border-border bg-background/95 backdrop-blur-sm"
       >
         <form onSubmit={handleSubmit} className="relative">
           <div className="relative group">

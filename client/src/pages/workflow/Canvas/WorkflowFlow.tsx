@@ -11,6 +11,7 @@ interface WorkflowFlowProps {
     connections: DataFlowConnection[];
   };
   onNodeClick?: (nodeId: string) => void;
+  isMobile?: boolean;
 }
 
 // Node types configuration
@@ -18,7 +19,11 @@ const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
 };
 
-function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
+function WorkflowFlow({
+  currentWorkflow,
+  onNodeClick,
+  isMobile = false,
+}: WorkflowFlowProps) {
   const reactFlowRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,48 +41,48 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
       // Use a longer timeout to ensure DOM updates are complete
       const timeoutId = setTimeout(() => {
         reactFlowRef.current?.fitView({
-          padding: 0.1,
+          padding: isMobile ? 0.05 : 0.1, // Less padding on mobile
           includeHiddenNodes: false,
-          minZoom: 0.8,
-          maxZoom: 1.2,
+          minZoom: isMobile ? 0.6 : 0.8, // Allow more zoom out on mobile
+          maxZoom: isMobile ? 1.5 : 1.2, // Allow more zoom in on mobile
         });
       }, 150);
 
       return () => clearTimeout(timeoutId);
     }
-  }, [currentWorkflow.nodes.length]);
+  }, [currentWorkflow.nodes.length, isMobile]);
 
-  // Calculate node positions with fixed dimensions and layout-based responsiveness
+  // Calculate node positions with responsive dimensions
   const calculateNodePositions = useMemo(() => {
-    // Fixed node sizing - no responsive sizing
-    const nodeWidth = 320;
-    const nodeSpacing = 100;
+    // Responsive node sizing
+    const nodeWidth = isMobile ? 260 : 320; // Smaller on mobile
+    const nodeSpacing = isMobile ? 60 : 100; // Tighter spacing on mobile
 
     const totalNodes = currentWorkflow.nodes.length;
 
     if (totalNodes === 0) return [];
 
-    // Simple layout: use vertical layout for 1-2 nodes, horizontal for 3+ nodes
-    const isVerticalLayout = totalNodes <= 2;
+    // Mobile: always use vertical layout, Desktop: use vertical for 1-2 nodes, horizontal for 3+
+    const isVerticalLayout = isMobile || totalNodes <= 2;
 
     if (isVerticalLayout) {
       // Vertical layout: nodes stacked top to bottom
       const nodeHeight = nodeWidth * 0.6;
-      const verticalSpacing = 120;
+      const verticalSpacing = isMobile ? 80 : 120; // Tighter spacing on mobile
 
       // Calculate total height needed
       const totalHeight =
         totalNodes * nodeHeight + (totalNodes - 1) * verticalSpacing;
 
-      // Fixed container height for calculations
-      const containerHeight = 600;
-      const startY = Math.max(80, (containerHeight - totalHeight) / 2);
+      // Responsive container height - smaller on mobile
+      const containerHeight = isMobile ? 300 : 600;
+      const startY = Math.max(40, (containerHeight - totalHeight) / 2); // Smaller margin on mobile
 
       return currentWorkflow.nodes.map((node, index) => ({
         id: node.id,
         type: 'workflowNode' as const,
         position: {
-          x: 50, // Fixed horizontal position
+          x: isMobile ? 10 : 50, // Smaller margin on mobile
           y: startY + index * (nodeHeight + verticalSpacing),
         },
         data: {
@@ -98,16 +103,16 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
       const totalWidth =
         totalNodes * nodeWidth + (totalNodes - 1) * nodeSpacing;
 
-      // Fixed container width for calculations
-      const containerWidth = 1200;
-      const startX = Math.max(50, (containerWidth - totalWidth) / 2);
+      // Responsive container width
+      const containerWidth = isMobile ? 600 : 1200; // Smaller on mobile
+      const startX = Math.max(30, (containerWidth - totalWidth) / 2); // Smaller margin on mobile
 
       return currentWorkflow.nodes.map((node, index) => ({
         id: node.id,
         type: 'workflowNode' as const,
         position: {
           x: startX + index * (nodeWidth + nodeSpacing),
-          y: 50, // Fixed vertical position
+          y: 30, // Smaller margin on mobile
         },
         data: {
           id: node.id,
@@ -122,7 +127,7 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
         },
       }));
     }
-  }, [currentWorkflow.nodes, stableOnNodeClick]);
+  }, [currentWorkflow.nodes, stableOnNodeClick, isMobile]);
 
   // Convert workflow nodes to React Flow nodes with dynamic positioning
   const nodes: Node[] = useMemo(() => {
@@ -198,13 +203,31 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{
-          padding: 0.1,
+          padding: isMobile ? 0.05 : 0.1,
           includeHiddenNodes: false,
-          minZoom: 0.8,
-          maxZoom: 1.2,
+          minZoom: isMobile ? 0.6 : 0.8,
+          maxZoom: isMobile ? 1.5 : 1.2,
         }}
         attributionPosition="bottom-left"
         className="bg-background"
+        panOnDrag={true}
+        panOnScroll={false}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        zoomOnDoubleClick={true}
+        preventScrolling={false}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        selectNodesOnDrag={false}
+        multiSelectionKeyCode={null}
+        deleteKeyCode={null}
+        snapToGrid={false}
+        snapGrid={[15, 15]}
+        onlyRenderVisibleElements={false}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        minZoom={isMobile ? 0.3 : 0.5}
+        maxZoom={isMobile ? 2 : 1.5}
       >
         <defs>
           <marker
@@ -226,11 +249,16 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
         </defs>
         <Background
           color="hsl(var(--muted-foreground))"
-          gap={20}
+          gap={isMobile ? 15 : 20}
           size={1}
           className="opacity-20"
         />
-        <Controls />
+        <Controls
+          showZoom={true}
+          showFitView={true}
+          showInteractive={false}
+          position={isMobile ? 'bottom-right' : 'bottom-left'}
+        />
       </ReactFlow>
     </div>
   );

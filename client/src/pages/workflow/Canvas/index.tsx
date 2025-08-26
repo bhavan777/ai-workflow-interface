@@ -12,12 +12,14 @@ interface CanvasProps {
   };
   isConnecting?: boolean;
   onNodeDataRequest: (nodeId: string) => void;
+  isMobile?: boolean;
 }
 
 export default function Canvas({
   currentWorkflow,
   isConnecting = false,
   onNodeDataRequest,
+  isMobile = false,
 }: CanvasProps) {
   const { nodeData, clearNodeData, isLoading } = useChatStore();
 
@@ -33,7 +35,7 @@ export default function Canvas({
   }, [clearNodeData]);
 
   return (
-    <div className="w-2/3 bg-background/30 relative">
+    <div className="w-full h-full bg-background/30 relative">
       <div className="h-full">
         {currentWorkflow.nodes.length > 0 ? (
           <div className="h-full">
@@ -41,6 +43,7 @@ export default function Canvas({
             <WorkflowFlow
               currentWorkflow={currentWorkflow}
               onNodeClick={handleNodeClick}
+              isMobile={isMobile}
             />
           </div>
         ) : (

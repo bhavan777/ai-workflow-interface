@@ -22,9 +22,16 @@ interface WorkflowNodeProps {
 export default function WorkflowNode({ data }: WorkflowNodeProps) {
   const nodeWidth = data.nodeWidth || 320; // Default to 320px if not provided
   const isVerticalLayout = data.isVerticalLayout || false;
+  const isMobile = nodeWidth <= 280; // Detect mobile based on node width
+
   const getNodeIcon = (type: string) => {
-    const iconSize =
-      nodeWidth < 300 ? 'size-5' : nodeWidth > 340 ? 'size-7' : 'size-6';
+    const iconSize = isMobile
+      ? 'size-4'
+      : nodeWidth < 300
+        ? 'size-5'
+        : nodeWidth > 340
+          ? 'size-7'
+          : 'size-6';
     switch (type) {
       case 'source':
         return <Database className={`${iconSize} text-white`} />;
@@ -63,14 +70,13 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
         className="w-3 h-3 bg-gray-400 border-2 border-white opacity-0"
       />
 
-      {/* Node Type Label - Dynamic positioning based on layout */}
-
+      {/* Node Type Label - Hidden on mobile to save space */}
       <div
         className={`absolute ${
           isVerticalLayout
             ? '-right-20 top-1/2 transform -translate-y-1/2'
             : '-top-7 left-1/2 transform -translate-x-1/2'
-        }`}
+        } ${isMobile ? 'hidden' : ''}`} // Hide labels on mobile to save space
       >
         <p
           className={`text-[14px] font-light text-muted-foreground capitalize ${
@@ -94,18 +100,28 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
             getNodeColor(data.type)
           )}
           style={{
-            height:
-              nodeWidth < 300 ? '64px' : nodeWidth > 340 ? '88px' : '80px',
+            height: isMobile
+              ? '48px'
+              : nodeWidth < 300
+                ? '64px'
+                : nodeWidth > 340
+                  ? '88px'
+                  : '80px',
           }}
         >
           {/* Icon and Name - Line 1 */}
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1">
             {getNodeIcon(data.type)}
             <p
               className="font-medium text-white whitespace-nowrap leading-none"
               style={{
-                fontSize:
-                  nodeWidth < 300 ? '16px' : nodeWidth > 340 ? '24px' : '20px',
+                fontSize: isMobile
+                  ? '12px'
+                  : nodeWidth < 300
+                    ? '16px'
+                    : nodeWidth > 340
+                      ? '24px'
+                      : '20px',
               }}
             >
               {data.name}
@@ -120,15 +136,20 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
 
         {/* White Content Area - Data Requirements */}
         <div
-          className="bg-background px-4 py-2"
+          className="bg-background px-3 py-2"
           style={{
-            height:
-              nodeWidth < 300 ? '160px' : nodeWidth > 340 ? '200px' : '192px',
+            height: isMobile
+              ? '100px'
+              : nodeWidth < 300
+                ? '160px'
+                : nodeWidth > 340
+                  ? '200px'
+                  : '192px',
           }}
         >
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Data Requirements List */}
-            <div className="flex flex-col items-start gap-3">
+            <div className="flex flex-col items-start gap-2">
               {data.data_requirements?.required_fields &&
               data.data_requirements.required_fields.length > 0 ? (
                 data.data_requirements.required_fields.map((field: string) => {
@@ -137,18 +158,22 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
                   return (
                     <div
                       key={`field-${data.id}-${field}`}
-                      className="flex h-6 items-center justify-start space-x-1"
+                      className="flex h-5 items-center justify-start space-x-1"
                     >
                       <div className="flex items-center space-x-1">
                         <div className="flex items-center">
                           {isProvided ? (
-                            <CheckCheck className="size-5 text-green-500 flex-shrink-0 transition-all duration-200 ease-in-out" />
+                            <CheckCheck
+                              className={`${isMobile ? 'size-3' : 'size-4'} text-green-500 flex-shrink-0 transition-all duration-200 ease-in-out`}
+                            />
                           ) : (
-                            <Circle className="size-4 text-gray-400 flex-shrink-0 mr-1 transition-all duration-200 ease-in-out" />
+                            <Circle
+                              className={`${isMobile ? 'size-2' : 'size-3'} text-gray-400 flex-shrink-0 mr-1 transition-all duration-200 ease-in-out`}
+                            />
                           )}
                         </div>
                         <span
-                          className={`text-[16px] truncate font-light max-w-full leading-none transition-colors duration-200 ease-in-out ${
+                          className={`${isMobile ? 'text-[12px]' : 'text-[14px]'} truncate font-light max-w-full leading-none transition-colors duration-200 ease-in-out ${
                             isProvided ? 'text-gray-900' : 'text-gray-400'
                           }`}
                         >
@@ -163,8 +188,12 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <HelpCircle className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                    <p className="text-[9px] text-muted-foreground">
+                    <HelpCircle
+                      className={`${isMobile ? 'w-2 h-2' : 'w-3 h-3'} text-gray-400 mx-auto mb-1`}
+                    />
+                    <p
+                      className={`${isMobile ? 'text-[6px]' : 'text-[8px]'} text-muted-foreground`}
+                    >
                       No data required
                     </p>
                   </div>

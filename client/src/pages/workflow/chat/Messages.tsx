@@ -35,7 +35,7 @@ export default function Messages({
 
   if (displayMessages.length === 0 && !isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+      <div className="h-full flex items-center justify-center text-muted-foreground">
         <p className="text-sm">
           No messages yet. Start a conversation to begin.
         </p>
@@ -46,11 +46,11 @@ export default function Messages({
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-y-auto p-4 transition-all duration-500 ${
+      className={`h-full overflow-y-auto p-4 transition-all duration-500 ${
         isWorkflowComplete ? 'opacity-40 blur-[0.3px]' : ''
       }`}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 pb-4">
         {displayMessages.map((message, index) => (
           <motion.div
             key={message.id}

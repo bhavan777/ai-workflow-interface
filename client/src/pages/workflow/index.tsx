@@ -1,7 +1,7 @@
 import { useChat } from '@/hooks/useChat';
 import { useWorkflowWebSocket } from '@/hooks/useWorkflowWebSocket';
 import { motion } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Canvas from './Canvas';
 import Chat from './chat';
@@ -10,6 +10,8 @@ export default function Workflow() {
   const hasInitialized = useRef(false);
   const hasStartedConversation = useRef(false);
   const location = useLocation();
+  const [isMobile, setIsMobile] = useState(false);
+  const [showChat, setShowChat] = useState(true);
 
   const {
     messages,
@@ -22,6 +24,17 @@ export default function Workflow() {
   // Initialize WebSocket (now handles all message processing internally)
   const { connect, sendUserMessage, sendMessage, isConnecting } =
     useWorkflowWebSocket();
+
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Connect to WebSocket when component mounts
   useEffect(() => {
@@ -101,13 +114,47 @@ export default function Workflow() {
     sendNodeDataRequest(nodeId, sendMessage);
   };
 
+  // Mobile toggle handlers
+  const toggleChat = () => setShowChat(!showChat);
+  const toggleCanvas = () => setShowChat(false);
+
   return (
     <>
-      {/* Main Content - Split Layout */}
-      <div className="flex h-[calc(100vh-70px)]">
+      {/* Mobile Navigation Tabs - Only show when mobile and has workflow */}
+      {isMobile && currentWorkflow.nodes.length > 0 && (
+        <div className="sticky top-0 z-40 flex border-b border-border bg-background/95 backdrop-blur-sm">
+          <button
+            onClick={toggleChat}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+              showChat
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            💬 Chat
+          </button>
+          <button
+            onClick={toggleCanvas}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+              !showChat
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            📊 Workflow
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Responsive Layout */}
+      <div
+        className={`flex ${isMobile ? 'flex-col' : 'flex-row'} ${isMobile ? 'h-screen' : 'h-[calc(100vh-70px)]'}`}
+      >
         {isConnecting ? (
-          // Show connection loader only in the chat section
-          <div className="w-1/3 border-r border-border bg-background/50 flex items-center justify-center">
+          // Show connection loader
+          <div
+            className={`${isMobile ? 'w-full flex-1' : 'w-1/3'} border-r border-border bg-background/50 flex items-center justify-center`}
+          >
             <div className="text-center">
               <motion.div
                 animate={{ rotate: 360 }}
@@ -123,18 +170,36 @@ export default function Workflow() {
             </div>
           </div>
         ) : (
-          <Chat
-            onStartConversation={handleStartConversation}
-            onSendMessage={handleSendMessage}
-            onStartWorkflow={handleStartWorkflow}
-          />
+          <>
+            {/* Chat Section */}
+            <div
+              className={`${
+                isMobile ? (showChat ? 'w-full h-full' : 'hidden') : 'w-1/3'
+              } border-r border-border bg-background/50 flex flex-col min-h-0`}
+            >
+              <Chat
+                onStartConversation={handleStartConversation}
+                onSendMessage={handleSendMessage}
+                onStartWorkflow={handleStartWorkflow}
+              />
+            </div>
+
+            {/* Canvas Section */}
+            <div
+              className={`${
+                isMobile ? (!showChat ? 'w-full flex-1' : 'hidden') : 'w-2/3'
+              } bg-background/30 relative`}
+            >
+              <Canvas
+                key={JSON.stringify(currentWorkflow)}
+                currentWorkflow={currentWorkflow}
+                isConnecting={isConnecting}
+                onNodeDataRequest={handleNodeDataRequest}
+                isMobile={isMobile}
+              />
+            </div>
+          </>
         )}
-        <Canvas
-          key={JSON.stringify(currentWorkflow)}
-          currentWorkflow={currentWorkflow}
-          isConnecting={isConnecting}
-          onNodeDataRequest={handleNodeDataRequest}
-        />
       </div>
     </>
   );
