@@ -60,9 +60,6 @@ export default function Drawer({
 
   if (!mounted) return null;
 
-  const slideDirection = position === 'right' ? 'x' : '-x';
-  const slideValue = position === 'right' ? '100%' : '-100%';
-
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -78,11 +75,15 @@ export default function Drawer({
 
           {/* Drawer */}
           <motion.div
-            initial={{ [slideDirection]: slideValue }}
-            animate={{ [slideDirection]: 0 }}
-            exit={{ [slideDirection]: slideValue }}
+            initial={position === 'right' ? { x: '100%' } : { x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={position === 'right' ? { x: '100%' } : { x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed ${position}-0 top-0 h-full ${width} bg-background border-l border-border shadow-2xl shadow-primary/30 z-[70] ${drawerClassName}`}
+            className={`fixed top-0 h-full ${width} bg-background shadow-2xl shadow-primary/30 z-[70] ${drawerClassName} ${
+              position === 'right'
+                ? 'right-0 border-l border-border'
+                : 'left-0 border-r border-border'
+            }`}
           >
             {children}
           </motion.div>

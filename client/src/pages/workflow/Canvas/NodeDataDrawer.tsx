@@ -108,7 +108,7 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
   };
 
   return (
-    <Drawer isOpen={isVisible} onClose={onClose}>
+    <Drawer isOpen={isVisible} onClose={onClose} position="right">
       {/* Header */}
       <div className="flex items-center justify-between p-3 px-4 border-b border-border">
         <h2 className="text-lg font-semibold text-muted-foreground">
