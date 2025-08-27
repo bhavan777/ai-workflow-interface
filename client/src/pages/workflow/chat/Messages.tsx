@@ -8,14 +8,12 @@ interface MessagesProps {
   messages: MessageType[];
   isWorkflowComplete?: boolean;
   onRetry?: () => void;
-  onCreateNewWorkflow?: () => void;
 }
 
 export default function Messages({
   messages,
   isWorkflowComplete = false,
   onRetry,
-  onCreateNewWorkflow,
 }: MessagesProps) {
   const { isLoading } = useChat();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,28 +85,6 @@ export default function Messages({
               <span>✨</span>
               <span>Workflow configuration complete!</span>
             </div>
-          </motion.div>
-        )}
-
-        {/* Create New Workflow Button */}
-        {displayMessages.length > 0 && onCreateNewWorkflow && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{
-              duration: 0.5,
-              ease: [0.4, 0.0, 0.2, 1],
-              delay: 0.2,
-            }}
-            className="text-center py-4"
-          >
-            <button
-              onClick={onCreateNewWorkflow}
-              className="inline-flex items-center space-x-2 text-sm text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg transition-all duration-200 hover:shadow-sm"
-            >
-              <span>🔄</span>
-              <span>Create New Workflow</span>
-            </button>
           </motion.div>
         )}
       </div>

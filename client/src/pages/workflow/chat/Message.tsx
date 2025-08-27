@@ -3,6 +3,7 @@ import type { Message as MessageType } from '@/types';
 import { motion } from 'framer-motion';
 import { AlertCircle, Brain, RotateCcw, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import WaveLoader from './WaveLoader';
 
 interface MessageProps {
   message: MessageType;
@@ -76,20 +77,21 @@ export default function Message({
       <div
         className={`flex flex-col max-w-xs ${isUser ? 'items-end' : 'items-start'}`}
       >
-        <motion.div
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.3,
-            ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
-            delay: 0.05,
-          }}
-          className={`text-xs mb-1 font-medium ${
-            isUser ? 'text-slate-400 text-right' : 'text-primary text-left'
-          }`}
-        >
-          {isUser ? 'You' : 'Nexla'}
-        </motion.div>
+        {/* Show label above for AI messages, below for user messages */}
+        {!isUser && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+              delay: 0.05,
+            }}
+            className="text-xs mb-1 font-medium text-primary text-left"
+          >
+            Nexla
+          </motion.div>
+        )}
         <motion.div
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -109,47 +111,8 @@ export default function Message({
             }}
           >
             {message.type === 'DUMMY_ASSISTANT' ? (
-              // Loading state for dummy assistant message - just dots
-              <div className="flex items-center space-x-1 min-h-6">
-                <motion.div
-                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.5, 1, 0.5],
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.5, 1, 0.5],
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: 0.2,
-                  }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 bg-primary-foreground rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.5, 1, 0.5],
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: 0.4,
-                  }}
-                />
-              </div>
+              // Loading state for dummy assistant message - use WaveLoader
+              <WaveLoader size="sm" />
             ) : (
               // Normal message content
               <>
@@ -189,6 +152,22 @@ export default function Message({
             </motion.div>
           )}
         </motion.div>
+
+        {/* Show "You" label below for user messages */}
+        {isUser && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0.0, 0.2, 1], // Gentle ease-out
+              delay: 0.05,
+            }}
+            className="text-xs mt-1 font-medium text-slate-400 text-right"
+          >
+            You
+          </motion.div>
+        )}
       </div>
 
       {isUser && (
