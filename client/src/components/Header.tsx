@@ -1,10 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
-import { Brain, Moon, Sun } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Brain, Moon, Plus, Sun } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Header() {
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const location = useLocation();
+
+  // Check if we're on the workflow page
+  const isOnWorkflowPage = location.pathname.startsWith('/workflow');
 
   return (
     <header className="bg-background border-b border-border sticky top-0 z-50">
@@ -27,6 +31,19 @@ export default function Header() {
             </div>
           </Link>
           <div className="flex items-center space-x-2">
+            {/* Create New Workflow Button - only show on workflow page */}
+            {isOnWorkflowPage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (window.location.href = '/workflow')}
+                className="flex items-center space-x-2 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Workflow</span>
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"

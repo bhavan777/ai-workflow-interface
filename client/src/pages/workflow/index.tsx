@@ -116,6 +116,18 @@ export default function Workflow() {
     sendNodeDataRequest(nodeId, sendMessage);
   };
 
+  const handleCreateNewWorkflow = () => {
+    // Reset the conversation state
+    clearConversation();
+    
+    // Reset the initialization flags
+    hasInitialized.current = false;
+    hasStartedConversation.current = false;
+    
+    // Force a re-render to show the workflow setup
+    window.location.reload();
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -151,6 +163,7 @@ export default function Workflow() {
             onStartConversation={handleStartConversation}
             onSendMessage={handleSendMessage}
             onStartWorkflow={handleStartWorkflow}
+            onCreateNewWorkflow={handleCreateNewWorkflow}
           />
         )}
         <Canvas

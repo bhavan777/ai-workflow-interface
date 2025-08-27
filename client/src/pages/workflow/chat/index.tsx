@@ -10,6 +10,7 @@ interface ChatProps {
   onSendMessage: (content: string) => void;
   onStartWorkflow?: () => void;
   onEditWorkflow?: () => void;
+  onCreateNewWorkflow?: () => void;
 }
 
 export default function Chat({
@@ -17,6 +18,7 @@ export default function Chat({
   onSendMessage,
   onStartWorkflow,
   onEditWorkflow,
+  onCreateNewWorkflow,
 }: ChatProps) {
   const { messages, isLoading, workflowComplete } = useChat();
   const [description, setDescription] = useState('');
@@ -73,6 +75,13 @@ export default function Chat({
     onSendMessage(retryMessage);
   };
 
+  const handleCreateNewWorkflow = () => {
+    // Reset the conversation and show the workflow setup
+    if (onCreateNewWorkflow) {
+      onCreateNewWorkflow();
+    }
+  };
+
   // If no conversation has started, show the workflow setup
   if (!hasStarted) {
     return (
@@ -94,6 +103,7 @@ export default function Chat({
         messages={messages}
         isWorkflowComplete={workflowComplete && !isEditMode}
         onRetry={handleRetry}
+        onCreateNewWorkflow={handleCreateNewWorkflow}
       />
 
       {/* Start Workflow Button - shows when configuration is complete */}
