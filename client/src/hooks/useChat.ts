@@ -42,6 +42,7 @@ export const useChat = () => {
       if (message.type === 'NODE_DATA') {
         setNodeData({
           node_id: message.node_id || '',
+          node_type: message.node_type || 'default',
           node_title: message.node_title || '',
           filled_values: message.filled_values || {},
         });
@@ -55,7 +56,11 @@ export const useChat = () => {
   );
 
   const sendNodeDataRequest = useCallback(
-    (nodeId: string, sendMessage: (message: Message) => void) => {
+    (
+      nodeId: string,
+      nodeType: string,
+      sendMessage: (message: Message) => void
+    ) => {
       setNodeDataLoading(true);
       setNodeDataError(null);
 
@@ -66,6 +71,7 @@ export const useChat = () => {
         content: `Get node data for node ${nodeId}`,
         timestamp: new Date().toISOString(),
         node_id: nodeId,
+        node_type: nodeType,
       };
 
       sendMessage(message);

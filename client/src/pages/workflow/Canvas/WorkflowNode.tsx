@@ -13,7 +13,7 @@ import StatusPill from './StatusPill';
 
 interface WorkflowNodeProps {
   data: DataFlowNode & {
-    onNodeClick?: (nodeId: string) => void;
+    onNodeClick?: (nodeId: string, nodeType: string) => void;
     nodeWidth?: number;
     isVerticalLayout?: boolean;
   };
@@ -85,7 +85,7 @@ export default function WorkflowNode({ data }: WorkflowNodeProps) {
       <div
         className="rounded-lg shadow-md bg-background border border-border overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
         style={{ width: `${nodeWidth}px` }}
-        onClick={() => data.onNodeClick?.(data.id)}
+        onClick={() => data.onNodeClick?.(data.id, data.type)}
       >
         {/* Colored Header with Icon+Title and Status Pill */}
         <div

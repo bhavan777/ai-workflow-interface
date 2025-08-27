@@ -112,18 +112,18 @@ export default function Workflow() {
     );
   };
 
-  const handleNodeDataRequest = (nodeId: string) => {
-    sendNodeDataRequest(nodeId, sendMessage);
+  const handleNodeDataRequest = (nodeId: string, nodeType: string) => {
+    sendNodeDataRequest(nodeId, nodeType, sendMessage);
   };
 
   const handleCreateNewWorkflow = () => {
     // Reset the conversation state
     clearConversation();
-    
+
     // Reset the initialization flags
     hasInitialized.current = false;
     hasStartedConversation.current = false;
-    
+
     // Force a re-render to show the workflow setup
     window.location.reload();
   };

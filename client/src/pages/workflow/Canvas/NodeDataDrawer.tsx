@@ -3,56 +3,55 @@ import Drawer from '@/components/ui/drawer';
 import { useChatStore } from '@/store/useChatStore';
 import {
   AlertCircle,
+  CheckCheck,
   CheckCircle,
   Circle,
   Clock,
+  Copy,
   Settings,
   X,
 } from 'lucide-react';
+import { useState } from 'react';
 
 interface NodeDataDrawerProps {
   onClose: () => void;
 }
 
 export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
-  const { nodeData, nodeDataLoading, nodeDataError } = useChatStore();
+  const { nodeData, nodeDataLoading, nodeDataError, currentWorkflow } =
+    useChatStore();
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Only show drawer when node data is present or there's an error
   const isVisible = !!nodeData || !!nodeDataError;
 
-  // Get node color based on type
-  const getNodeColor = (type: string) => {
-    switch (type) {
+  // Get node color from current workflow
+  const getNodeColorFromWorkflow = (nodeId: string) => {
+    const node = currentWorkflow.nodes.find(n => n.id === nodeId);
+    if (!node) return 'text-gray-500';
+
+    switch (node.type) {
       case 'source':
-        return 'text-blue-500';
+        return 'bg-blue-500';
       case 'transform':
-        return 'text-purple-500';
+        return 'bg-purple-500';
       case 'destination':
-        return 'text-green-500';
+        return 'bg-green-500';
       default:
-        return 'text-gray-500';
+        return 'bg-gray-500';
     }
   };
 
-  // Extract node type from node title (assuming format like "Shopify Store", "Data Transform", etc.)
-  const getNodeType = (title: string) => {
-    if (
-      title.toLowerCase().includes('store') ||
-      title.toLowerCase().includes('source')
-    ) {
-      return 'source';
-    } else if (
-      title.toLowerCase().includes('transform') ||
-      title.toLowerCase().includes('process')
-    ) {
-      return 'transform';
-    } else if (
-      title.toLowerCase().includes('warehouse') ||
-      title.toLowerCase().includes('destination')
-    ) {
-      return 'destination';
+  // Copy value to clipboard
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      // Reset the copied state after 2 seconds
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
     }
-    return 'default';
   };
 
   // Calculate overall node status based on filled values
@@ -125,7 +124,9 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-4">
+      <div
+        className={`p-4 space-y-4 ${getNodeColorFromWorkflow(nodeData?.node_id || '')}`}
+      >
         {nodeDataLoading ? (
           <div className="flex items-center justify-center h-32">
             <p className="text-muted-foreground">Loading node data...</p>
@@ -138,11 +139,9 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
         ) : nodeData ? (
           <>
             {/* Node Title and Status */}
-            <div className=" flex py-5  w-full items-center justify-between">
+            <div className={`flex pb-5  w-full items-center justify-between`}>
               <div className="space-y-2">
-                <p
-                  className={`text-lg font-semibold ${getNodeColor(getNodeType(nodeData.node_title))}`}
-                >
+                <p className={`text-lg font-semibold text-background`}>
                   {nodeData.node_title}
                 </p>
               </div>
@@ -168,7 +167,7 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
                   ([field, value]) => (
                     <div
                       key={field}
-                      className="relative p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors duration-200"
+                      className="relative p-4 rounded-lg border border-border bg-card transition-colors duration-200"
                     >
                       {/* Field Name Label - Top Left */}
                       <div className="absolute top-2 left-3">
@@ -189,8 +188,31 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
                           {value === 'Not filled' ? (
                             <span>Not configured</span>
                           ) : (
-                            <div className="whitespace-pre-wrap break-words">
-                              {value}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="whitespace-pre-wrap break-words flex-1">
+                                {value}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {copiedField === field ? (
+                                  <p className="flex items-center gap-1 h-[24px]">
+                                    <span className="text-xs text-green-500 font-light">
+                                      Copied
+                                    </span>
+                                    <CheckCheck className="h-3 w-3 text-green-500" />
+                                  </p>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      copyToClipboard(value, field)
+                                    }
+                                    className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

@@ -30,6 +30,7 @@ export interface Message {
 
   // For NODE_DATA responses and GET_NODE_DATA requests
   node_id?: string;
+  node_type?: string;
   node_title?: string;
   filled_values?: Record<string, string>;
 }

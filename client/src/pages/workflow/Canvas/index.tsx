@@ -11,7 +11,7 @@ interface CanvasProps {
     connections: DataFlowConnection[];
   };
   isConnecting?: boolean;
-  onNodeDataRequest: (nodeId: string) => void;
+  onNodeDataRequest: (nodeId: string, nodeType: string) => void;
 }
 
 export default function Canvas({
@@ -22,8 +22,8 @@ export default function Canvas({
   const { nodeData, clearNodeData, isLoading } = useChatStore();
 
   const handleNodeClick = useCallback(
-    (nodeId: string) => {
-      onNodeDataRequest(nodeId);
+    (nodeId: string, nodeType: string) => {
+      onNodeDataRequest(nodeId, nodeType);
     },
     [onNodeDataRequest]
   );

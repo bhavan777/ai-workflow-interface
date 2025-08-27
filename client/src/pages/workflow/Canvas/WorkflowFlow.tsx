@@ -10,7 +10,7 @@ interface WorkflowFlowProps {
     nodes: DataFlowNode[];
     connections: DataFlowConnection[];
   };
-  onNodeClick?: (nodeId: string) => void;
+  onNodeClick?: (nodeId: string, nodeType: string) => void;
 }
 
 // Node types configuration
@@ -24,8 +24,8 @@ function WorkflowFlow({ currentWorkflow, onNodeClick }: WorkflowFlowProps) {
 
   // Stabilize the onNodeClick function to prevent unnecessary re-renders
   const stableOnNodeClick = useCallback(
-    (nodeId: string) => {
-      onNodeClick?.(nodeId);
+    (nodeId: string, nodeType: string) => {
+      onNodeClick?.(nodeId, nodeType);
     },
     [onNodeClick]
   );

@@ -15,6 +15,7 @@ interface ChatState {
   // Node data state
   nodeData: {
     node_id: string;
+    node_type: string;
     node_title: string;
     filled_values: Record<string, string>;
   } | null;
@@ -44,6 +45,7 @@ interface ChatState {
   setNodeData: (
     data: {
       node_id: string;
+      node_type: string;
       node_title: string;
       filled_values: Record<string, string>;
     } | null
@@ -244,7 +246,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setNodeDataError: error => set({ nodeDataError: error, nodeData: null }),
   clearNodeData: () =>
     set({ nodeData: null, nodeDataError: null, nodeDataLoading: false }),
-  
+
   // Reset entire store to initial state
   resetStore: () =>
     set({

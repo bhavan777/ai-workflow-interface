@@ -23,6 +23,7 @@ export const useWorkflowWebSocket = () => {
       if (message.type === 'NODE_DATA') {
         setNodeData({
           node_id: message.node_id || '',
+          node_type: message.node_type || 'default',
           node_title: message.node_title || '',
           filled_values: message.filled_values || {},
         });
