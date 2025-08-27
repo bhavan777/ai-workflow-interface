@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
+import Drawer from '@/components/ui/drawer';
 import { useChatStore } from '@/store/useChatStore';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
   CheckCircle,
@@ -108,129 +108,105 @@ export default function NodeDataDrawer({ onClose }: NodeDataDrawerProps) {
   };
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
-            onClick={onClose}
-          />
+    <Drawer isOpen={isVisible} onClose={onClose}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 px-4 border-b border-border">
+        <h2 className="text-lg font-semibold text-muted-foreground">
+          Node Details
+        </h2>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onClose}
+          className="h-8 w-8 rounded-full"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
 
-          {/* Drawer */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-96 bg-background border-l border-border shadow-xl z-50"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">
-                Node Details
-              </h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+      {/* Content */}
+      <div className="p-4 space-y-4">
+        {nodeDataLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <p className="text-muted-foreground">Loading node data...</p>
+          </div>
+        ) : nodeDataError ? (
+          <div className="flex items-center space-x-2 p-3 rounded-lg border border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <p className="text-sm text-red-700">{nodeDataError}</p>
+          </div>
+        ) : nodeData ? (
+          <>
+            {/* Node Title and Status */}
+            <div className=" flex py-5  w-full items-center justify-between">
+              <div className="space-y-2">
+                <p
+                  className={`text-lg font-semibold ${getNodeColor(getNodeType(nodeData.node_title))}`}
+                >
+                  {nodeData.node_title}
+                </p>
+              </div>
+
+              <div className="flex justify-start">
+                <div
+                  className={`px-3 py-1 rounded-full text-sm flex items-center gap-1.5 w-fit transition-all duration-300 ${getStatusPillColor(getNodeStatus(nodeData.filled_values))}`}
+                >
+                  {getStatusIcon(getNodeStatus(nodeData.filled_values))}
+                  <span>
+                    {getStatusText(getNodeStatus(nodeData.filled_values))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Node Status Pill */}
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-4">
-              {nodeDataLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <p className="text-muted-foreground">Loading node data...</p>
-                </div>
-              ) : nodeDataError ? (
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-red-200 bg-red-50">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <p className="text-sm text-red-700">{nodeDataError}</p>
-                </div>
-              ) : nodeData ? (
-                <>
-                  {/* Node Title and Status */}
-                  <div className=" flex py-5  w-full items-center justify-between">
-                    <div className="space-y-2">
-                      <p
-                        className={`text-lg font-semibold ${getNodeColor(getNodeType(nodeData.node_title))}`}
-                      >
-                        {nodeData.node_title}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-start">
-                      <div
-                        className={`px-3 py-1 rounded-full text-sm flex items-center gap-1.5 w-fit transition-all duration-300 ${getStatusPillColor(getNodeStatus(nodeData.filled_values))}`}
-                      >
-                        {getStatusIcon(getNodeStatus(nodeData.filled_values))}
-                        <span>
-                          {getStatusText(getNodeStatus(nodeData.filled_values))}
+            {/* Filled Values */}
+            <div className="space-y-3">
+              <div className="space-y-3">
+                {Object.entries(nodeData.filled_values).map(
+                  ([field, value]) => (
+                    <div
+                      key={field}
+                      className="relative p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors duration-200"
+                    >
+                      {/* Field Name Label - Top Left */}
+                      <div className="absolute top-2 left-3">
+                        <span className="text-xs font-medium text-primary bg-background px-1.5 py-0.5 rounded">
+                          {field.replace(/_/g, ' ')}
                         </span>
                       </div>
-                    </div>
 
-                    {/* Node Status Pill */}
-                  </div>
-
-                  {/* Filled Values */}
-                  <div className="space-y-3">
-                    <div className="space-y-3">
-                      {Object.entries(nodeData.filled_values).map(
-                        ([field, value]) => (
-                          <div
-                            key={field}
-                            className="relative p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors duration-200"
-                          >
-                            {/* Field Name Label - Top Left */}
-                            <div className="absolute top-2 left-3">
-                              <span className="text-xs font-medium text-primary bg-background px-1.5 py-0.5 rounded">
-                                {field.replace(/_/g, ' ')}
-                              </span>
+                      {/* Field Content - Below Label */}
+                      <div className="pt-6">
+                        <div
+                          className={`text-sm leading-relaxed ${
+                            value === 'Not filled'
+                              ? 'text-muted-foreground'
+                              : 'text-foreground'
+                          }`}
+                        >
+                          {value === 'Not filled' ? (
+                            <span>Not configured</span>
+                          ) : (
+                            <div className="whitespace-pre-wrap break-words">
+                              {value}
                             </div>
-
-                            {/* Field Content - Below Label */}
-                            <div className="pt-6">
-                              <div
-                                className={`text-sm leading-relaxed ${
-                                  value === 'Not filled'
-                                    ? 'text-muted-foreground'
-                                    : 'text-foreground'
-                                }`}
-                              >
-                                {value === 'Not filled' ? (
-                                  <span>Not configured</span>
-                                ) : (
-                                  <div className="whitespace-pre-wrap break-words">
-                                    {value}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-32">
-                  <p className="text-muted-foreground">
-                    No node data available
-                  </p>
-                </div>
-              )}
+                  )
+                )}
+              </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-32">
+            <p className="text-muted-foreground">No node data available</p>
+          </div>
+        )}
+      </div>
+    </Drawer>
   );
 }

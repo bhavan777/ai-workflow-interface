@@ -75,7 +75,7 @@ export default function Message({
       )}
 
       <div
-        className={`flex flex-col max-w-xs ${isUser ? 'items-end' : 'items-start'}`}
+        className={`flex flex-col ${isUser ? 'max-w-md items-end' : 'max-w-xs items-start'}`}
       >
         {/* Show label above for AI messages, below for user messages */}
         {!isUser && (
@@ -117,11 +117,11 @@ export default function Message({
               // Normal message content
               <>
                 {message.message_type === 'markdown' ? (
-                  <div className="text-sm prose prose-sm max-w-none">
+                  <div className="text-sm prose prose-sm max-w-none break-words overflow-hidden">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap">
+                  <p className="text-sm whitespace-pre-wrap break-words overflow-hidden">
                     {message.content}
                   </p>
                 )}
